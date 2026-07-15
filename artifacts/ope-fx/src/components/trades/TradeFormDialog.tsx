@@ -97,12 +97,18 @@ function ScreenshotField({
   value: string;
   onChange: (url: string) => void;
 }) {
-  const { uploadFile, isUploading } = useUpload();
+  const { toast } = useToast();
+  const { uploadFile, isUploading } = useUpload({
+    onError: (err) =>
+      toast({ title: "Image upload failed", description: err.message, variant: "destructive" }),
+  });
 
   const handleFile = async (file: File) => {
     const result = await uploadFile(file);
     if (result) onChange(result.objectPath);
   };
+
+  const resolvedSrc = value.startsWith("/objects") ? `/api/storage${value}` : value;
 
   return (
     <div className="space-y-2">
@@ -110,7 +116,7 @@ function ScreenshotField({
       {value ? (
         <div className="relative w-full max-w-[220px]">
           <img
-            src={value.startsWith("/objects") ? `/api${value}` : value}
+            src={resolvedSrc}
             alt={label}
             className="rounded-lg border border-border w-full h-32 object-cover"
           />

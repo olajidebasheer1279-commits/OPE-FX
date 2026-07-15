@@ -9,6 +9,12 @@
 - [x] Rules
 - [x] Trade Details Page (Prompt #4)
 - [x] Mobile Polish & UI Fixes (Prompt #4)
+- [x] Bug Fix Pass (Bug Fix Prompt)
+  - Journal: 404 (no entry for date) no longer shows "Failed to load this entry" — empty form shown correctly
+  - Image upload: provisioned Replit Object Storage (PRIVATE_OBJECT_DIR, PUBLIC_OBJECT_SEARCH_PATHS, DEFAULT_OBJECT_STORAGE_BUCKET_ID set); images now persist across refresh/logout
+  - Image display: fixed URL resolution from /api/objects/… to /api/storage/objects/… (correct route); upload errors now show a toast
+  - Dashboard stat cards: responsive text (text-sm→text-xl) with truncate prevents overflow on narrow 2-col mobile grid
+  - Milestone Progress: flex-wrap prevents currency label overflow on small screens
 - [ ] Reviews
 - [ ] Analytics
 - [ ] Trading Assistant

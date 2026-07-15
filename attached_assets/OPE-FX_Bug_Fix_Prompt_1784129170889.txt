@@ -1,0 +1,39 @@
+OPE-FX BUG FIX PROMPT
+
+Continue from the current GitHub version.
+DO NOT add any new features.
+ONLY fix the bugs listed below.
+
+1. IMAGE UPLOAD
+- Restore device image upload.
+- Save images correctly.
+- Persist after refresh/login.
+- Show thumbnails.
+- Full-screen preview on tap.
+
+2. FLOATING '+' BUTTON
+- Fix its position or remove it if unnecessary.
+- Ensure it never overlaps UI.
+
+3. DASHBOARD CARDS
+- Resize numbers automatically.
+- Prevent text overflow on mobile.
+
+4. JOURNAL
+- Fix 'Failed to load this entry'.
+- Verify API, database queries and IDs.
+- Create, edit, delete and open entries correctly.
+
+5. MOBILE RESPONSIVENESS
+- No horizontal scrolling.
+- Improve spacing, padding and typography.
+- Make tables mobile-friendly.
+
+6. TEST EVERYTHING
+Verify Dashboard, Trade Log, Journal, Rules, Trade Details, Image Upload, Charts, Calculations and Navigation.
+Fix every issue found.
+
+7. GITHUB
+Commit changes, push to the existing GitHub repository, update PROJECT_PROGRESS.md and provide a completion report.
+
+Do NOT build new features. Stop after all bugs are fixed.

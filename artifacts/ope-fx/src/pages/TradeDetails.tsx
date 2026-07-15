@@ -39,7 +39,7 @@ import { queryClient } from "@/lib/queryClient";
 
 function resolveImageUrl(path: string | null | undefined): string | null {
   if (!path) return null;
-  if (path.startsWith("/objects")) return `/api${path}`;
+  if (path.startsWith("/objects")) return `/api/storage${path}`;
   return path;
 }
 

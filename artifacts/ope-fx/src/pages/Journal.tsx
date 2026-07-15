@@ -10,6 +10,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import {
   useListJournals,
   useGetJournal,
+  getGetJournalQueryOptions,
   useUpsertJournal,
   getListJournalsQueryKey,
   type JournalInput,
@@ -44,7 +45,14 @@ export default function Journal() {
   const monthKey = format(visibleMonth, "yyyy-MM");
 
   const { data: monthEntries } = useListJournals({ month: monthKey });
-  const { data: entry, isLoading, error, refetch } = useGetJournal(dateKey);
+  // A 404 simply means no entry exists yet for this date — show empty form, not an error.
+  const { data: entry, isLoading, error, refetch } = useGetJournal(dateKey, {
+    query: {
+      ...getGetJournalQueryOptions(dateKey),
+      retry: false,
+    },
+  });
+  const isNotFound = !!(error && (error as { status?: number })?.status === 404);
 
   const [form, setForm] = useState<EntryState>(emptyEntry);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
@@ -148,7 +156,7 @@ export default function Journal() {
               <Skeleton className="h-40 rounded-xl" />
               <Skeleton className="h-40 rounded-xl" />
             </div>
-          ) : error ? (
+          ) : (error && !isNotFound) ? (
             <div className="flex flex-col items-center justify-center h-[30vh] text-center border border-border bg-card/50 rounded-xl p-8">
               <AlertCircle className="h-10 w-10 text-destructive mb-4" />
               <p className="text-muted-foreground mb-4">Failed to load this entry.</p>

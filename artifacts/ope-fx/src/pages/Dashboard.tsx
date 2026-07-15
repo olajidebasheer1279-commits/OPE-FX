@@ -33,14 +33,14 @@ function StatCard({ title, value, subtext, trend, isCurrency = false }: { title:
   else if (trend === 'down' || (trend === undefined && isNegative)) colorClass = "text-destructive";
 
   return (
-    <div className="p-5 rounded-xl border border-border bg-card shadow-sm flex flex-col justify-between">
-      <h3 className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-2">{title}</h3>
-      <div className="flex items-baseline gap-2">
-        <span className={`text-2xl font-semibold tracking-tight ${colorClass} font-mono`}>
+    <div className="p-3 sm:p-5 rounded-xl border border-border bg-card shadow-sm flex flex-col justify-between min-w-0 overflow-hidden">
+      <h3 className="text-[10px] sm:text-xs font-mono uppercase tracking-wider text-muted-foreground mb-1 sm:mb-2 truncate">{title}</h3>
+      <div className="flex items-baseline gap-1 min-w-0">
+        <span className={`text-sm sm:text-lg lg:text-xl font-semibold tracking-tight ${colorClass} font-mono truncate min-w-0`}>
           {isCurrency ? formatCurrency(value) : value.toString()}
         </span>
       </div>
-      {subtext && <p className="text-xs text-muted-foreground mt-2">{subtext}</p>}
+      {subtext && <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 truncate">{subtext}</p>}
     </div>
   );
 }
@@ -127,14 +127,14 @@ export default function Dashboard() {
         <StatCard title="Weekly P/L" value={weeklyPnl} isCurrency subtext="WTD net" />
         <StatCard title="Monthly P/L" value={monthlyPnl} isCurrency subtext="MTD net" />
         <div className="p-5 rounded-xl border border-border bg-card shadow-sm flex flex-col justify-between">
-          <h3 className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-2">Win Rate</h3>
-          <span className="text-2xl font-semibold tracking-tight font-mono">{formatPercent(winRate)}</span>
-          <p className="text-xs text-muted-foreground mt-2">{totalTrades} total trades</p>
+          <h3 className="text-[10px] sm:text-xs font-mono uppercase tracking-wider text-muted-foreground mb-1 sm:mb-2 truncate">Win Rate</h3>
+          <span className="text-sm sm:text-lg lg:text-xl font-semibold tracking-tight font-mono">{formatPercent(winRate)}</span>
+          <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 truncate">{totalTrades} total trades</p>
         </div>
-        <div className="p-5 rounded-xl border border-border bg-card shadow-sm flex flex-col justify-between">
-          <h3 className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-2">Avg R:R</h3>
-          <span className="text-2xl font-semibold tracking-tight font-mono">{avgRiskReward.toFixed(2)}R</span>
-          <p className="text-xs text-muted-foreground mt-2">Expectancy profile</p>
+        <div className="p-3 sm:p-5 rounded-xl border border-border bg-card shadow-sm flex flex-col justify-between min-w-0 overflow-hidden">
+          <h3 className="text-[10px] sm:text-xs font-mono uppercase tracking-wider text-muted-foreground mb-1 sm:mb-2 truncate">Avg R:R</h3>
+          <span className="text-sm sm:text-lg lg:text-xl font-semibold tracking-tight font-mono">{avgRiskReward.toFixed(2)}R</span>
+          <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 truncate">Expectancy profile</p>
         </div>
       </div>
 
@@ -249,9 +249,9 @@ export default function Dashboard() {
               <h3 className="font-semibold tracking-tight text-lg">Milestone Progress</h3>
               <Target className="h-5 w-5 text-muted-foreground" />
             </div>
-            <div className="mb-2 flex justify-between items-end">
-              <span className="text-2xl font-semibold font-mono tracking-tight">{formatCurrency(currentBalance)}</span>
-              <span className="text-sm text-muted-foreground font-mono">Target: {formatCurrency(goalProgress.targetBalance)}</span>
+            <div className="mb-2 flex flex-wrap items-end justify-between gap-1">
+              <span className="text-lg sm:text-2xl font-semibold font-mono tracking-tight truncate min-w-0">{formatCurrency(currentBalance)}</span>
+              <span className="text-xs sm:text-sm text-muted-foreground font-mono shrink-0">Target: {formatCurrency(goalProgress.targetBalance)}</span>
             </div>
             <div className="h-2.5 w-full bg-secondary rounded-full overflow-hidden mb-3 border border-border">
               <div 
