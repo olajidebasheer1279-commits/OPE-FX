@@ -4,14 +4,22 @@ A professional trading journal for Forex and synthetic-indices traders, focused 
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `pnpm --filter @workspace/api-server run dev` — run the API server (port 8080)
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string (Replit-provisioned)
-- Auth: Replit-managed Clerk tenant (`CLERK_SECRET_KEY`, `CLERK_PUBLISHABLE_KEY`, `VITE_CLERK_PUBLISHABLE_KEY`) — already provisioned, no action needed
+- Required env: `DATABASE_URL` — Postgres connection string (Replit-provisioned; `postgresql-16` module must be present in `.replit` modules)
+- Auth: Replit-managed Clerk tenant (`CLERK_SECRET_KEY`, `CLERK_PUBLISHABLE_KEY`, `VITE_CLERK_PUBLISHABLE_KEY`) — provisioned via `setupClerkWhitelabelAuth()`; no manual action needed
 - All three services (web, API, mockup sandbox) run via their own Replit workflows; no manual start needed
+
+## Bootstrap (first-time setup on a fresh Replit)
+
+1. `pnpm install` — install all workspace dependencies
+2. Ensure `postgresql-16` is listed in `.replit` modules (required for local DB commands)
+3. Clerk secrets are auto-provisioned by Replit — no manual key entry needed
+4. `pnpm --filter @workspace/db run push` — apply the Drizzle schema to the dev database
+5. All three workflows (`artifacts/api-server: API Server`, `artifacts/ope-fx: web`, `artifacts/mockup-sandbox: Component Preview Server`) start automatically
 
 ## Stack
 
