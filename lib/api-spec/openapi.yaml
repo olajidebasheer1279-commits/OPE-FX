@@ -24,6 +24,12 @@ tags:
     description: Advanced analytics and OPE Performance Rating
   - name: Storage
     description: Object storage upload and serving endpoints.
+  - name: account
+    description: Account and profile settings
+  - name: notifications
+    description: User notifications
+  - name: assistant
+    description: Trading assistant and smart insights
 paths:
   /healthz:
     get:
@@ -684,6 +690,179 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /account:
+    get:
+      operationId: getAccount
+      tags: [account]
+      summary: Get account and profile settings
+      responses:
+        "200":
+          description: Account settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountSettings"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateAccount
+      tags: [account]
+      summary: Update account and profile settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AccountSettingsInput"
+      responses:
+        "200":
+          description: Updated account settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountSettings"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /notifications:
+    get:
+      operationId: listNotifications
+      tags: [notifications]
+      summary: List user notifications
+      responses:
+        "200":
+          description: Notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Notification"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /notifications/{id}/read:
+    patch:
+      operationId: markNotificationRead
+      tags: [notifications]
+      summary: Mark a notification as read
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Updated notification
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Notification"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /notifications/read-all:
+    post:
+      operationId: markAllNotificationsRead
+      tags: [notifications]
+      summary: Mark all notifications as read
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success]
+                properties:
+                  success: { type: boolean }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /notifications/{id}:
+    delete:
+      operationId: deleteNotification
+      tags: [notifications]
+      summary: Delete a notification
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /notifications/generate:
+    post:
+      operationId: generateNotifications
+      tags: [notifications]
+      summary: Auto-generate smart notifications based on trading activity
+      responses:
+        "200":
+          description: Generation result
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [created, notifications]
+                properties:
+                  created: { type: integer }
+                  notifications:
+                    type: array
+                    items: { type: string }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /assistant/summary:
+    get:
+      operationId: getAssistantSummary
+      tags: [assistant]
+      summary: Get trading assistant summary
+      description: Returns pre-trade checklist, smart warnings, daily plan, recent stats, and suggestions.
+      responses:
+        "200":
+          description: Assistant summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssistantSummary"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   schemas:
     HealthStatus:
@@ -1134,10 +1313,18 @@ components:
           $ref: "#/components/schemas/DirectionStat"
     AnalyticsSummary:
       type: object
-      required: [totalTrades, closedTrades, pairPerformance, directionBreakdown, timeframeBreakdown, dayOfWeekBreakdown, avgHoldingTimeMinutes, currentStreak, longestWinStreak, longestLossStreak, equityGrowth, monthlyPnl, riskDistribution, dateFrom, dateTo]
+      required: [totalTrades, closedTrades, wins, losses, breakeven, winRate, avgRR, totalPnl, startingBalance, currentBalance, pairPerformance, directionBreakdown, timeframeBreakdown, dayOfWeekBreakdown, avgHoldingTimeMinutes, currentStreak, longestWinStreak, longestLossStreak, equityGrowth, monthlyPnl, riskDistribution, dateFrom, dateTo]
       properties:
         totalTrades: { type: integer }
         closedTrades: { type: integer }
+        wins: { type: integer }
+        losses: { type: integer }
+        breakeven: { type: integer }
+        winRate: { type: ["number", "null"] }
+        avgRR: { type: ["number", "null"] }
+        totalPnl: { type: number }
+        startingBalance: { type: number }
+        currentBalance: { type: number }
         pairPerformance:
           type: array
           items: { $ref: "#/components/schemas/PairPerformanceStat" }
@@ -1191,6 +1378,103 @@ components:
         period: { type: string }
         tradesAnalyzed: { type: integer }
         breakdown: { $ref: "#/components/schemas/OprBreakdown" }
+        suggestions:
+          type: array
+          items: { type: string }
+    AccountSettings:
+      type: object
+      required: [id, name, currency, accountType, timezone, startingBalance, currentBalance, userEmail, createdAt]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        broker: { type: ["string", "null"] }
+        currency: { type: string }
+        accountType: { type: string, enum: [live, demo, prop] }
+        timezone: { type: string }
+        startingBalance: { type: number }
+        currentBalance: { type: number }
+        defaultRiskPercent: { type: ["number", "null"] }
+        defaultLotSize: { type: ["number", "null"] }
+        userName: { type: ["string", "null"] }
+        userEmail: { type: string }
+        userAvatarUrl: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
+    AccountSettingsInput:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        broker: { type: ["string", "null"], maxLength: 100 }
+        currency: { type: string, minLength: 1, maxLength: 10 }
+        accountType: { type: string, enum: [live, demo, prop] }
+        timezone: { type: string, maxLength: 100 }
+        startingBalance: { type: number, minimum: 0 }
+        currentBalance: { type: number, minimum: 0 }
+        defaultRiskPercent: { type: ["number", "null"], minimum: 0, maximum: 100 }
+        defaultLotSize: { type: ["number", "null"], minimum: 0 }
+        userName: { type: ["string", "null"], maxLength: 100 }
+    Notification:
+      type: object
+      required: [id, title, message, type, isRead, createdAt]
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        message: { type: string }
+        type: { type: string }
+        isRead: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    AssistantChecklistItem:
+      type: object
+      required: [id, text, category, isChecked]
+      properties:
+        id: { type: integer }
+        text: { type: string }
+        category: { type: string }
+        isChecked: { type: boolean }
+    AssistantWarning:
+      type: object
+      required: [level, message]
+      properties:
+        level: { type: string, enum: [info, warning, danger] }
+        message: { type: string }
+    AssistantStreakInfo:
+      type: object
+      required: [type, count]
+      properties:
+        type: { type: string, enum: [win, loss, none] }
+        count: { type: integer }
+    AssistantStats:
+      type: object
+      required: [trades, wins, losses, breakeven, totalPnl, startingBalance, currentBalance, currentStreak]
+      properties:
+        trades: { type: integer }
+        wins: { type: integer }
+        losses: { type: integer }
+        breakeven: { type: integer }
+        winRate: { type: ["number", "null"] }
+        avgRR: { type: ["number", "null"] }
+        avgRisk: { type: ["number", "null"] }
+        totalPnl: { type: number }
+        startingBalance: { type: number }
+        currentBalance: { type: number }
+        defaultRiskPercent: { type: ["number", "null"] }
+        currentStreak:
+          $ref: "#/components/schemas/AssistantStreakInfo"
+    AssistantSummary:
+      type: object
+      required: [checklist, hasJournalToday, recentStats, warnings, suggestions]
+      properties:
+        checklist:
+          type: array
+          items:
+            $ref: "#/components/schemas/AssistantChecklistItem"
+        dailyPlan: { type: ["string", "null"] }
+        hasJournalToday: { type: boolean }
+        recentStats:
+          $ref: "#/components/schemas/AssistantStats"
+        warnings:
+          type: array
+          items:
+            $ref: "#/components/schemas/AssistantWarning"
         suggestions:
           type: array
           items: { type: string }

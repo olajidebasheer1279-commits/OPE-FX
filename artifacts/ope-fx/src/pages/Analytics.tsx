@@ -130,10 +130,15 @@ function AnalyticsTab() {
   }
 
   const { 
-    totalTrades, closedTrades, pairPerformance, directionBreakdown, 
+    totalTrades, closedTrades, wins, losses, breakeven, winRate, avgRR, totalPnl,
+    startingBalance, currentBalance,
+    pairPerformance, directionBreakdown, 
     dayOfWeekBreakdown, avgHoldingTimeMinutes, currentStreak, 
     longestWinStreak, longestLossStreak, equityGrowth, monthlyPnl, riskDistribution 
   } = analytics;
+
+  const pnlColor = totalPnl >= 0 ? "text-emerald-500" : "text-destructive";
+  const winRateColor = (winRate ?? 0) >= 50 ? "text-emerald-500" : "text-destructive";
 
   const hasLong = directionBreakdown.long.trades > 0;
   const hasShort = directionBreakdown.short.trades > 0;
@@ -167,6 +172,62 @@ function AnalyticsTab() {
             className="w-[140px] h-9 text-sm"
           />
         </div>
+      </div>
+
+      {/* Summary stats row */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground font-mono uppercase tracking-wider">Win Rate</p>
+            <p className={`text-2xl font-bold font-mono mt-1 ${winRateColor}`}>
+              {winRate !== null ? `${winRate.toFixed(1)}%` : "—"}
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">{wins}W · {losses}L · {breakeven}BE</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground font-mono uppercase tracking-wider">Avg R:R</p>
+            <p className={`text-2xl font-bold font-mono mt-1 ${avgRR !== null && avgRR >= 1.5 ? "text-emerald-500" : avgRR !== null ? "text-yellow-400" : "text-muted-foreground"}`}>
+              {avgRR !== null ? `${avgRR.toFixed(2)}` : "—"}
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">Risk:Reward ratio</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground font-mono uppercase tracking-wider">Total P&amp;L</p>
+            <p className={`text-2xl font-bold font-mono mt-1 ${pnlColor}`}>
+              {totalPnl >= 0 ? "+" : ""}{totalPnl.toFixed(2)}
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">{closedTrades} closed trades</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground font-mono uppercase tracking-wider">Balance</p>
+            <p className="text-2xl font-bold font-mono mt-1 text-primary">
+              {currentBalance.toFixed(2)}
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">Started: {startingBalance.toFixed(2)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground font-mono uppercase tracking-wider">Closed Trades</p>
+            <p className="text-2xl font-bold font-mono mt-1">{closedTrades}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">of {totalTrades} total</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground font-mono uppercase tracking-wider">Hold Time</p>
+            <p className="text-2xl font-bold font-mono mt-1">
+              {avgHoldingTimeMinutes ? `${Math.round(avgHoldingTimeMinutes / 60)}h${Math.round(avgHoldingTimeMinutes % 60)}m` : "N/A"}
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">Avg per trade</p>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

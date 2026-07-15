@@ -1,0 +1,43 @@
+OPE-FX PHASE 5
+
+IMPORTANT: Fix analytics/data synchronization bugs BEFORE building new features.
+
+PART A - Fix Analytics & Balance
+- Analytics must use Trade Log only.
+- Remove demo data.
+- Correct Wins, Losses, Breakeven, Win Rate, Avg RR, OPR, Equity Curve, Monthly Profit.
+- Current Balance = Starting Balance + Total Profit - Total Loss.
+- Recalculate automatically after create/edit/delete.
+- Verify using real trades.
+
+PART B - Settings
+- Profile, Email, Currency, Time Zone.
+- Editable Starting Balance.
+- Editable Current Balance (confirmation).
+- Default Risk %, Lot Size, Broker, Account Type.
+- Theme, Dashboard Preferences.
+- Export CSV/PDF, Backup.
+- Logout and Clerk account management.
+
+PART C - Trading Assistant
+- Trade checklist.
+- Risk, psychology and rule reminders.
+- Daily plan.
+- End-of-day review.
+- Smart warnings (SL, TP, RR, risk, rule violations).
+- Suggestions from user's trading history.
+
+PART D - Notifications
+- Journal reminder.
+- Daily & Weekly review reminders.
+- Rule reminders.
+- Profit streak congratulations.
+- Risk & discipline alerts.
+
+PART E - Testing
+Test Dashboard, Analytics, Balance, Trade Log, Journal, Rules, Reviews, OPR, Settings, Notifications and Trading Assistant. Fix every bug.
+
+PART F - GitHub
+Commit, push, update PROJECT_PROGRESS.md, provide completion report.
+
+Do NOT work on image upload/storage. Leave that for Prompt #6.

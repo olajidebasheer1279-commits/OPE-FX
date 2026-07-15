@@ -14,7 +14,7 @@ import {
   DeleteTradeParams,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/requireAuth";
-import { getOrCreateDefaultAccount } from "../lib/accounts";
+import { getOrCreateDefaultAccount, recalculateBalance } from "../lib/accounts";
 import { computeTradeMetrics, serializeTrade, toNumber } from "../lib/trades";
 
 const router: IRouter = Router();
@@ -130,14 +130,8 @@ router.post("/trades", requireAuth, async (req, res): Promise<void> => {
     })
     .returning();
 
-  if (metrics.pnl !== null) {
-    await db
-      .update(accountsTable)
-      .set({
-        currentBalance: (toNumber(account.currentBalance) + metrics.pnl).toString(),
-      })
-      .where(eq(accountsTable.id, account.id));
-  }
+  // Recompute balance from scratch to prevent drift
+  await recalculateBalance(account.id);
 
   res.status(201).json(CreateTradeResponse.parse(serializeTrade(trade)));
 });
@@ -298,16 +292,8 @@ router.patch("/trades/:id", requireAuth, async (req, res): Promise<void> => {
     .where(eq(tradesTable.id, existing.id))
     .returning();
 
-  if (balanceDelta !== 0) {
-    await db
-      .update(accountsTable)
-      .set({
-        currentBalance: (
-          toNumber(account.currentBalance) + balanceDelta
-        ).toString(),
-      })
-      .where(eq(accountsTable.id, account.id));
-  }
+  // Recompute balance from scratch to prevent drift
+  await recalculateBalance(account.id);
 
   res.json(UpdateTradeResponse.parse(serializeTrade(updated)));
 });
@@ -334,19 +320,11 @@ router.delete("/trades/:id", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
+  const account = await getOrCreateDefaultAccount(req.userId!);
   await db.delete(tradesTable).where(eq(tradesTable.id, existing.id));
 
-  if (existing.pnl !== null) {
-    const account = await getOrCreateDefaultAccount(req.userId!);
-    await db
-      .update(accountsTable)
-      .set({
-        currentBalance: (
-          toNumber(account.currentBalance) - toNumber(existing.pnl)
-        ).toString(),
-      })
-      .where(eq(accountsTable.id, account.id));
-  }
+  // Recompute balance from scratch to prevent drift
+  await recalculateBalance(account.id);
 
   res.sendStatus(204);
 });

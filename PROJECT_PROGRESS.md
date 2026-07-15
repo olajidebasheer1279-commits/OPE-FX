@@ -1,8 +1,8 @@
 # OPE-FX Project Progress
 
 - [x] Foundation
-- [ ] Authentication (Clerk wired for the foundation shell; full account settings/profile flows not yet built)
-- [x] Database (all 9 tables created: Users, Accounts, Trades, Journals, Reviews, Rules, Notifications, Uploads, Achievements)
+- [x] Authentication (Clerk wired; profile managed via Clerk UserProfile in Settings)
+- [x] Database (all 9 tables created + updated: Users, Accounts, Trades, Journals, Reviews, Rules, Notifications, Uploads, Achievements)
 - [x] Dashboard
 - [x] Trade Log
 - [x] Journal
@@ -11,31 +11,62 @@
 - [x] Mobile Polish & UI Fixes (Prompt #4)
 - [x] Bug Fix Pass (Bug Fix Prompt)
   - Journal: 404 (no entry for date) no longer shows "Failed to load this entry" — empty form shown correctly
-  - Image upload: provisioned Replit Object Storage (PRIVATE_OBJECT_DIR, PUBLIC_OBJECT_SEARCH_PATHS, DEFAULT_OBJECT_STORAGE_BUCKET_ID set); images now persist across refresh/logout
-  - Image display: fixed URL resolution from /api/objects/… to /api/storage/objects/… (correct route); upload errors now show a toast
-  - Dashboard stat cards: responsive text (text-sm→text-xl) with truncate prevents overflow on narrow 2-col mobile grid
+  - Image upload: provisioned Replit Object Storage; images now persist across refresh/logout
+  - Image display: fixed URL resolution from /api/objects/… to /api/storage/objects/… (correct route)
+  - Dashboard stat cards: responsive text with truncate prevents overflow on narrow 2-col mobile grid
   - Milestone Progress: flex-wrap prevents currency label overflow on small screens
-- [ ] Reviews
-- [ ] Analytics
-- [ ] Trading Assistant
-- [ ] Settings
-- [ ] Testing
+- [x] Analytics Fix (Prompt #5A)
+  - Fixed breakeven trade classification: pnl === 0 is no longer counted as a loss
+  - Added wins, losses, breakeven, winRate, avgRR, totalPnl, startingBalance, currentBalance to analytics summary response
+  - Analytics page now shows a 6-card summary row: Win Rate, Avg R:R, Total P&L, Balance, Closed Trades, Hold Time
+  - Balance fix: trades create/update/delete now call `recalculateBalance()` (full recompute from startingBalance + sum(PnL)) instead of incremental updates — prevents drift
+- [x] Settings Page (Prompt #5B)
+  - Added defaultRiskPercent, defaultLotSize, accountType, timezone columns to accounts table
+  - GET /account + PATCH /account routes
+  - Settings page: Account tab (name, broker, type, currency, timezone, starting/current balance with AlertDialog override confirmation), Trading Defaults tab (risk %, lot size), Profile tab (Clerk UserProfile embed), Export tab (CSV download)
+- [x] Trading Assistant Page (Prompt #5C)
+  - GET /assistant/summary route: pre-trade checklist (from rules), today's journal plan, recent stats (last 20 closed trades), smart warnings, coach's suggestions
+  - Assistant.tsx: trade-readiness banner (green/red), 4 stat cards (Win Rate, Avg R:R, Streak, P&L), pre-trade checklist with interactive checkboxes + per-category grouping + progress bar, daily plan from journal, smart warnings with severity levels, coach's suggestions, psychology reminders
+- [x] Notifications System (Prompt #5D)
+  - notifications table already existed; added full CRUD API routes: GET /notifications, PATCH /notifications/:id/read, POST /notifications/read-all, DELETE /notifications/:id, POST /notifications/generate
+  - Auto-generation: journal reminder, weekly review reminder, win streak ≥ 3, loss streak ≥ 3, risk alert (avg risk > 3%), deduplication with recency check
+  - Header bell icon now shows unread badge count, opens a Popover dropdown with mark-read, mark-all-read, and delete actions
+- [x] Reviews
+- [x] Analytics
+- [ ] Testing (E2E / manual test pass)
 - [ ] Production Ready
+
+## API Endpoints (all require Clerk JWT auth)
+
+### Account
+- GET /api/account — account + profile settings
+- PATCH /api/account — update account/profile/trading defaults
+
+### Notifications
+- GET /api/notifications — list (newest first, limit 50)
+- PATCH /api/notifications/:id/read — mark one as read
+- POST /api/notifications/read-all — mark all as read
+- DELETE /api/notifications/:id — delete one
+- POST /api/notifications/generate — auto-generate smart notifications
+
+### Assistant
+- GET /api/assistant/summary — checklist, daily plan, recent stats, warnings, suggestions
+
+### Previously built
+- GET/POST /api/trades, GET/PATCH/DELETE /api/trades/:id
+- GET /api/dashboard/summary
+- GET/POST /api/journals, GET/PUT /api/journals/:date
+- GET/POST /api/rules, PATCH/DELETE /api/rules/:id
+- GET/POST /api/reviews, GET/PATCH/DELETE /api/reviews/:id
+- GET /api/analytics/summary, GET /api/analytics/opr-score
+- POST /api/storage/upload-url, GET /api/storage/objects/:path
 
 ## Notes
 
-- Foundation (Prompt #1), Dashboard (Prompt #2), and Trade Log/Journal/Rules (Prompt #3) are complete.
-- Prompt #4 (Mobile Polish + Trade Details + UI Fixes) is complete:
-  - Trade Details page (`/trades/:id`): displays all fields (pair, market, direction, date/time, entry, exit, SL, TP, lot size, risk %, risk amount, P/L, pips, R:R, timeframe, strategy, notes, outcome), before/after screenshot thumbnails with fullscreen tap-to-expand, edit and delete actions.
-  - Image system: screenshots stored in object storage, resolved via `/api/objects/…` pattern — persist across save, refresh, and re-open.
-  - Dashboard Recent Executions: rows are now clickable (navigate to Trade Details). Mobile card view added for screens below `sm` breakpoint — no horizontal scrolling.
-  - Trade Log: desktop table rows and mobile cards are now clickable (navigate to Trade Details). Edit/Delete buttons stop event propagation.
-  - Dashboard stats auto-update via TanStack Query invalidation on every trade mutation.
-  - Mobile FAB (floating action button): wired to navigate to `/trades/new` to open the trade entry form from any page.
-  - AppLayout main content padding increased (`pb-24` on mobile) so FAB never overlaps page content.
-  - TypeScript: clean typecheck (`tsc --noEmit` passes with no errors).
-- Trade Log: full CRUD with search/filter/sort/pagination, desktop table + mobile card views, and before/after screenshot uploads (object storage) on each trade. P/L, pips, and risk:reward are computed server-side.
-- Journal: daily entries with mood/confidence/discipline/fear/greed/focus/sleep ratings, a calendar view marking days with entries, and debounced autosave (drafts) via upsert-by-date.
-- Rules: categorized checklist (Market Structure, POI, Confirmation, Risk Management, Psychology) with persisted checkboxes, progress %, and search/filter.
-- Reviews, Analytics, and Trading Assistant are intentionally left as "coming soon" placeholder pages inside the real app shell/routes, per the phased spec. They will be built in future prompts.
-- Auth: Clerk (email + Google) is fully wired for sign-in/sign-up, session handling, and route protection. A per-user "Settings" page for profile management does not exist yet — that is deferred along with the other unbuilt feature pages.
+- Phase 5 (Prompt #05) complete: analytics/balance fixes, Settings page, Trading Assistant page, Notifications system.
+- Foundation (Prompt #1), Dashboard (Prompt #2), Trade Log/Journal/Rules (Prompt #3) are complete.
+- Prompt #4 (Mobile Polish + Trade Details + UI Fixes) is complete.
+- TypeScript typecheck passes clean (`tsc --noEmit`).
+- DB schema pushed after accounts table column additions (defaultRiskPercent, defaultLotSize, accountType, timezone).
+- OpenAPI spec updated and codegen re-run; all new endpoints have generated React Query hooks in @workspace/api-client-react.
+- Auth: Clerk (email + Google) is fully wired for sign-in/sign-up, session handling, and route protection.

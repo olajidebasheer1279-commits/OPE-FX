@@ -490,6 +490,16 @@ export interface DirectionBreakdown {
 export interface AnalyticsSummary {
   totalTrades: number;
   closedTrades: number;
+  wins: number;
+  losses: number;
+  breakeven: number;
+  /** @nullable */
+  winRate: number | null;
+  /** @nullable */
+  avgRR: number | null;
+  totalPnl: number;
+  startingBalance: number;
+  currentBalance: number;
   pairPerformance: PairPerformanceStat[];
   directionBreakdown: DirectionBreakdown;
   timeframeBreakdown: TimeframeStat[];
@@ -535,6 +545,160 @@ export interface OprScore {
   period: string;
   tradesAnalyzed: number;
   breakdown: OprBreakdown;
+  suggestions: string[];
+}
+
+export type AccountSettingsAccountType = typeof AccountSettingsAccountType[keyof typeof AccountSettingsAccountType];
+
+
+export const AccountSettingsAccountType = {
+  live: 'live',
+  demo: 'demo',
+  prop: 'prop',
+} as const;
+
+export interface AccountSettings {
+  id: number;
+  name: string;
+  /** @nullable */
+  broker?: string | null;
+  currency: string;
+  accountType: AccountSettingsAccountType;
+  timezone: string;
+  startingBalance: number;
+  currentBalance: number;
+  /** @nullable */
+  defaultRiskPercent?: number | null;
+  /** @nullable */
+  defaultLotSize?: number | null;
+  /** @nullable */
+  userName?: string | null;
+  userEmail: string;
+  /** @nullable */
+  userAvatarUrl?: string | null;
+  createdAt: string;
+}
+
+export type AccountSettingsInputAccountType = typeof AccountSettingsInputAccountType[keyof typeof AccountSettingsInputAccountType];
+
+
+export const AccountSettingsInputAccountType = {
+  live: 'live',
+  demo: 'demo',
+  prop: 'prop',
+} as const;
+
+export interface AccountSettingsInput {
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  name?: string;
+  /**
+     * @maxLength 100
+     * @nullable
+     */
+  broker?: string | null;
+  /**
+     * @minLength 1
+     * @maxLength 10
+     */
+  currency?: string;
+  accountType?: AccountSettingsInputAccountType;
+  /** @maxLength 100 */
+  timezone?: string;
+  /** @minimum 0 */
+  startingBalance?: number;
+  /** @minimum 0 */
+  currentBalance?: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     * @nullable
+     */
+  defaultRiskPercent?: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  defaultLotSize?: number | null;
+  /**
+     * @maxLength 100
+     * @nullable
+     */
+  userName?: string | null;
+}
+
+export interface Notification {
+  id: number;
+  title: string;
+  message: string;
+  type: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
+export interface AssistantChecklistItem {
+  id: number;
+  text: string;
+  category: string;
+  isChecked: boolean;
+}
+
+export type AssistantWarningLevel = typeof AssistantWarningLevel[keyof typeof AssistantWarningLevel];
+
+
+export const AssistantWarningLevel = {
+  info: 'info',
+  warning: 'warning',
+  danger: 'danger',
+} as const;
+
+export interface AssistantWarning {
+  level: AssistantWarningLevel;
+  message: string;
+}
+
+export type AssistantStreakInfoType = typeof AssistantStreakInfoType[keyof typeof AssistantStreakInfoType];
+
+
+export const AssistantStreakInfoType = {
+  win: 'win',
+  loss: 'loss',
+  none: 'none',
+} as const;
+
+export interface AssistantStreakInfo {
+  type: AssistantStreakInfoType;
+  count: number;
+}
+
+export interface AssistantStats {
+  trades: number;
+  wins: number;
+  losses: number;
+  breakeven: number;
+  /** @nullable */
+  winRate?: number | null;
+  /** @nullable */
+  avgRR?: number | null;
+  /** @nullable */
+  avgRisk?: number | null;
+  totalPnl: number;
+  startingBalance: number;
+  currentBalance: number;
+  /** @nullable */
+  defaultRiskPercent?: number | null;
+  currentStreak: AssistantStreakInfo;
+}
+
+export interface AssistantSummary {
+  checklist: AssistantChecklistItem[];
+  /** @nullable */
+  dailyPlan?: string | null;
+  hasJournalToday: boolean;
+  recentStats: AssistantStats;
+  warnings: AssistantWarning[];
   suggestions: string[];
 }
 
@@ -677,5 +841,14 @@ export type GetOprScoreParams = {
  * YYYY-MM for a specific month, or 'all-time'. Defaults to current month.
  */
 period?: string;
+};
+
+export type MarkAllNotificationsRead200 = {
+  success: boolean;
+};
+
+export type GenerateNotifications200 = {
+  created: number;
+  notifications: string[];
 };
 

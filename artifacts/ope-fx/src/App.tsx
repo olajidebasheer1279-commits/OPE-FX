@@ -16,6 +16,8 @@ import Journal from "@/pages/Journal";
 import Rules from "@/pages/Rules";
 import Reviews from "@/pages/Reviews";
 import Analytics from "@/pages/Analytics";
+import Assistant from "@/pages/Assistant";
+import Settings from "@/pages/Settings";
 import Placeholder from "@/pages/Placeholder";
 import AppLayout from "@/components/layout/AppLayout";
 
@@ -196,8 +198,8 @@ function ClerkProviderWithRoutes() {
             <Route path="/reviews" component={() => <ProtectedRoute component={Reviews} />} />
             <Route path="/rules" component={() => <ProtectedRoute component={Rules} />} />
             <Route path="/analytics" component={() => <ProtectedRoute component={Analytics} />} />
-            <Route path="/assistant" component={() => <ProtectedRoute component={Placeholder} title="Trading Assistant" description="AI-powered insights based on your trade history." />} />
-            <Route path="/settings" component={() => <ProtectedRoute component={Placeholder} title="Settings" description="Configure your command center and integrations." />} />
+            <Route path="/assistant" component={() => <ProtectedRoute component={Assistant} />} />
+            <Route path="/settings" component={() => <ProtectedRoute component={Settings} />} />
             <Route path="/help" component={() => <ProtectedRoute component={Placeholder} title="Help" description="Documentation and support resources." />} />
             
             <Route component={() => (

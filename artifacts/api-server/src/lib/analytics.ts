@@ -220,9 +220,34 @@ export async function getAnalyticsSummaryForUser(
     count: riskMap.get(b.label) ?? 0,
   }));
 
+  // --- Top-level win/loss/breakeven/winRate/avgRR ---
+  const wins = closed.filter((t) => toNumber(t.pnl) > 0);
+  const losses = closed.filter((t) => toNumber(t.pnl) < 0);
+  const breakevenTrades = closed.filter((t) => toNumber(t.pnl) === 0);
+  const winRate = closed.length > 0 ? (wins.length / closed.length) * 100 : null;
+
+  const tradesWithRR = closed.filter((t) => t.riskRewardRatio !== null);
+  const avgRR =
+    tradesWithRR.length > 0
+      ? tradesWithRR.reduce((s, t) => s + toNumber(t.riskRewardRatio), 0) /
+        tradesWithRR.length
+      : null;
+
+  const totalPnl = closed.reduce((s, t) => s + toNumber(t.pnl), 0);
+  const acctStartingBalance = account ? toNumber(account.startingBalance) : 0;
+  const acctCurrentBalance = account ? acctStartingBalance + totalPnl : 0;
+
   return {
     totalTrades: trades.length,
     closedTrades: closed.length,
+    wins: wins.length,
+    losses: losses.length,
+    breakeven: breakevenTrades.length,
+    winRate,
+    avgRR,
+    totalPnl,
+    startingBalance: acctStartingBalance,
+    currentBalance: acctCurrentBalance,
     pairPerformance,
     directionBreakdown,
     timeframeBreakdown,

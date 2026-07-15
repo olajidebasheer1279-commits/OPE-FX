@@ -660,6 +660,14 @@ export const GetAnalyticsSummaryQueryParams = zod.object({
 export const GetAnalyticsSummaryResponse = zod.object({
   "totalTrades": zod.number(),
   "closedTrades": zod.number(),
+  "wins": zod.number(),
+  "losses": zod.number(),
+  "breakeven": zod.number(),
+  "winRate": zod.number().nullable(),
+  "avgRR": zod.number().nullable(),
+  "totalPnl": zod.number(),
+  "startingBalance": zod.number(),
+  "currentBalance": zod.number(),
   "pairPerformance": zod.array(zod.object({
   "symbol": zod.string(),
   "trades": zod.number(),
@@ -831,5 +839,177 @@ export const GetStorageObjectParams = zod.object({
 })
 
 export const GetStorageObjectResponse = zod.unknown()
+
+
+/**
+ * @summary Get account and profile settings
+ */
+export const GetAccountResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "broker": zod.string().nullish(),
+  "currency": zod.string(),
+  "accountType": zod.enum(['live', 'demo', 'prop']),
+  "timezone": zod.string(),
+  "startingBalance": zod.number(),
+  "currentBalance": zod.number(),
+  "defaultRiskPercent": zod.number().nullish(),
+  "defaultLotSize": zod.number().nullish(),
+  "userName": zod.string().nullish(),
+  "userEmail": zod.string(),
+  "userAvatarUrl": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update account and profile settings
+ */
+export const updateAccountBodyNameMax = 100;
+
+export const updateAccountBodyBrokerMax = 100;
+
+export const updateAccountBodyCurrencyMax = 10;
+
+export const updateAccountBodyTimezoneMax = 100;
+
+export const updateAccountBodyStartingBalanceMin = 0;
+
+export const updateAccountBodyCurrentBalanceMin = 0;
+
+export const updateAccountBodyDefaultRiskPercentMin = 0;
+export const updateAccountBodyDefaultRiskPercentMax = 100;
+
+export const updateAccountBodyDefaultLotSizeMin = 0;
+
+export const updateAccountBodyUserNameMax = 100;
+
+
+
+export const UpdateAccountBody = zod.object({
+  "name": zod.string().min(1).max(updateAccountBodyNameMax).optional(),
+  "broker": zod.string().max(updateAccountBodyBrokerMax).nullish(),
+  "currency": zod.string().min(1).max(updateAccountBodyCurrencyMax).optional(),
+  "accountType": zod.enum(['live', 'demo', 'prop']).optional(),
+  "timezone": zod.string().max(updateAccountBodyTimezoneMax).optional(),
+  "startingBalance": zod.number().min(updateAccountBodyStartingBalanceMin).optional(),
+  "currentBalance": zod.number().min(updateAccountBodyCurrentBalanceMin).optional(),
+  "defaultRiskPercent": zod.number().min(updateAccountBodyDefaultRiskPercentMin).max(updateAccountBodyDefaultRiskPercentMax).nullish(),
+  "defaultLotSize": zod.number().min(updateAccountBodyDefaultLotSizeMin).nullish(),
+  "userName": zod.string().max(updateAccountBodyUserNameMax).nullish()
+})
+
+export const UpdateAccountResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "broker": zod.string().nullish(),
+  "currency": zod.string(),
+  "accountType": zod.enum(['live', 'demo', 'prop']),
+  "timezone": zod.string(),
+  "startingBalance": zod.number(),
+  "currentBalance": zod.number(),
+  "defaultRiskPercent": zod.number().nullish(),
+  "defaultLotSize": zod.number().nullish(),
+  "userName": zod.string().nullish(),
+  "userEmail": zod.string(),
+  "userAvatarUrl": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary List user notifications
+ */
+export const ListNotificationsResponseItem = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "message": zod.string(),
+  "type": zod.string(),
+  "isRead": zod.boolean(),
+  "createdAt": zod.coerce.date()
+})
+export const ListNotificationsResponse = zod.array(ListNotificationsResponseItem)
+
+
+/**
+ * @summary Mark a notification as read
+ */
+export const MarkNotificationReadParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const MarkNotificationReadResponse = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "message": zod.string(),
+  "type": zod.string(),
+  "isRead": zod.boolean(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Mark all notifications as read
+ */
+export const MarkAllNotificationsReadResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+/**
+ * @summary Delete a notification
+ */
+export const DeleteNotificationParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteNotificationResponse = zod.void()
+
+
+/**
+ * @summary Auto-generate smart notifications based on trading activity
+ */
+export const GenerateNotificationsResponse = zod.object({
+  "created": zod.number(),
+  "notifications": zod.array(zod.string())
+})
+
+
+/**
+ * Returns pre-trade checklist, smart warnings, daily plan, recent stats, and suggestions.
+ * @summary Get trading assistant summary
+ */
+export const GetAssistantSummaryResponse = zod.object({
+  "checklist": zod.array(zod.object({
+  "id": zod.number(),
+  "text": zod.string(),
+  "category": zod.string(),
+  "isChecked": zod.boolean()
+})),
+  "dailyPlan": zod.string().nullish(),
+  "hasJournalToday": zod.boolean(),
+  "recentStats": zod.object({
+  "trades": zod.number(),
+  "wins": zod.number(),
+  "losses": zod.number(),
+  "breakeven": zod.number(),
+  "winRate": zod.number().nullish(),
+  "avgRR": zod.number().nullish(),
+  "avgRisk": zod.number().nullish(),
+  "totalPnl": zod.number(),
+  "startingBalance": zod.number(),
+  "currentBalance": zod.number(),
+  "defaultRiskPercent": zod.number().nullish(),
+  "currentStreak": zod.object({
+  "type": zod.enum(['win', 'loss', 'none']),
+  "count": zod.number()
+})
+}),
+  "warnings": zod.array(zod.object({
+  "level": zod.enum(['info', 'warning', 'danger']),
+  "message": zod.string()
+})),
+  "suggestions": zod.array(zod.string())
+})
 
 

@@ -17,6 +17,16 @@ import type { TimeframeStat } from './timeframeStat';
 export interface AnalyticsSummary {
   totalTrades: number;
   closedTrades: number;
+  wins: number;
+  losses: number;
+  breakeven: number;
+  /** @nullable */
+  winRate: number | null;
+  /** @nullable */
+  avgRR: number | null;
+  totalPnl: number;
+  startingBalance: number;
+  currentBalance: number;
   pairPerformance: PairPerformanceStat[];
   directionBreakdown: DirectionBreakdown;
   timeframeBreakdown: TimeframeStat[];

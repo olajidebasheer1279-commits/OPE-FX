@@ -6,7 +6,18 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './accountSettings';
+export * from './accountSettingsAccountType';
+export * from './accountSettingsInput';
+export * from './accountSettingsInputAccountType';
 export * from './analyticsSummary';
+export * from './assistantChecklistItem';
+export * from './assistantStats';
+export * from './assistantStreakInfo';
+export * from './assistantStreakInfoType';
+export * from './assistantSummary';
+export * from './assistantWarning';
+export * from './assistantWarningLevel';
 export * from './dashboardSummary';
 export * from './dayOfWeekStat';
 export * from './directionBreakdown';
@@ -14,6 +25,7 @@ export * from './directionStat';
 export * from './equityGrowthPoint';
 export * from './equityPoint';
 export * from './errorResponse';
+export * from './generateNotifications200';
 export * from './getAnalyticsSummaryParams';
 export * from './getOprScoreParams';
 export * from './goalProgress';
@@ -30,7 +42,9 @@ export * from './listTradesParams';
 export * from './listTradesSortBy';
 export * from './listTradesSortDir';
 export * from './listTradesStatus';
+export * from './markAllNotificationsRead200';
 export * from './monthlyPnlStat';
+export * from './notification';
 export * from './oprBreakdown';
 export * from './oprScore';
 export * from './oprScoreComponent';

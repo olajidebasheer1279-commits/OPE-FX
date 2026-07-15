@@ -17,6 +17,8 @@ export const accountsTable = pgTable("accounts", {
   name: text("name").notNull(),
   broker: text("broker"),
   currency: text("currency").notNull().default("USD"),
+  accountType: text("account_type").default("live"), // "live" | "demo" | "prop"
+  timezone: text("timezone").default("UTC"),
   startingBalance: numeric("starting_balance", {
     precision: 14,
     scale: 2,
@@ -25,6 +27,14 @@ export const accountsTable = pgTable("accounts", {
     precision: 14,
     scale: 2,
   }).notNull(),
+  defaultRiskPercent: numeric("default_risk_percent", {
+    precision: 6,
+    scale: 2,
+  }),
+  defaultLotSize: numeric("default_lot_size", {
+    precision: 10,
+    scale: 2,
+  }),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
