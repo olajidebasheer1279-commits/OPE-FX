@@ -1,0 +1,65 @@
+OPE-FX REPLIT PROMPT #3 – TRADE LOG + JOURNAL + RULES
+
+Continue the existing OPE-FX project. Do NOT rebuild completed Foundation or Dashboard.
+
+OBJECTIVE
+Replace the placeholder Trade Log, Journal and Rules pages with fully functional versions.
+
+SECTION 1 – TRADE LOG
+- Full CRUD (create, edit, delete, view).
+- Fields: Date, Pair, Market, Direction, Entry, Exit, SL, TP, Lot Size, Risk %, Risk Amount, Profit/Loss, Pips, RR, Outcome, Timeframe, Strategy, Notes.
+- Native image upload fields for Before and After screenshots (no image URLs).
+- Search, filters, sorting, pagination.
+- Desktop table and mobile cards.
+- Auto-calculate RR, P/L and trade metrics.
+- Dashboard statistics and recent trades update automatically.
+
+SECTION 2 – JOURNAL
+- Daily journal with Mood, Confidence, Discipline, Fear, Greed, Focus, Sleep, Trading Plan, Notes, Mistakes, Lessons, Tomorrow Goal.
+- Create/Edit/Delete.
+- Autosave draft.
+- Calendar/history view.
+- Mobile responsive.
+
+SECTION 3 – RULES
+- Interactive trading rule checklist.
+- Categories:
+Market Structure, POI, Confirmation, Risk Management, Psychology.
+- Tick boxes persist to database.
+- Progress percentage.
+- Search/filter rules.
+- Rule completion score.
+
+GENERAL
+- Use React Hook Form + Zod.
+- Loading skeletons.
+- Empty states.
+- Friendly errors.
+- Responsive on mobile and desktop.
+- Keep design consistent with Foundation and Dashboard.
+
+TESTING
+Verify:
+- Trade CRUD works.
+- Journal CRUD works.
+- Rules save correctly.
+- Screenshot upload selection works.
+- Dashboard updates after trade changes.
+- No console errors.
+- No new TypeScript errors.
+
+Update PROJECT_PROGRESS.md:
+☑ Trade Log
+☑ Journal
+☑ Rules
+
+Leave Reviews, Analytics, Assistant and Settings unchecked.
+
+Provide:
+1. Summary
+2. Files changed
+3. APIs added
+4. Tests performed
+5. Remaining issues
+
+Stop and wait for the next combined prompt.

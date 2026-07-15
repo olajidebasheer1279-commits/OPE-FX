@@ -19,7 +19,8 @@ export const tradesTable = pgTable("trades", {
   accountId: integer("account_id")
     .notNull()
     .references(() => accountsTable.id),
-  symbol: text("symbol").notNull(),
+  symbol: text("symbol").notNull(), // "Pair" in the UI
+  market: text("market").notNull().default("Forex"), // "Forex" | "Synthetic Indices"
   direction: text("direction").notNull(), // "long" | "short"
   status: text("status").notNull().default("open"), // "open" | "closed"
   entryPrice: numeric("entry_price", { precision: 14, scale: 5 }).notNull(),
@@ -27,10 +28,18 @@ export const tradesTable = pgTable("trades", {
   stopLoss: numeric("stop_loss", { precision: 14, scale: 5 }),
   takeProfit: numeric("take_profit", { precision: 14, scale: 5 }),
   lotSize: numeric("lot_size", { precision: 10, scale: 2 }).notNull(),
+  riskPercent: numeric("risk_percent", { precision: 6, scale: 2 }),
+  riskAmount: numeric("risk_amount", { precision: 14, scale: 2 }),
   pnl: numeric("pnl", { precision: 14, scale: 2 }),
+  pips: numeric("pips", { precision: 10, scale: 2 }),
   riskRewardRatio: numeric("risk_reward_ratio", { precision: 6, scale: 2 }),
+  outcome: text("outcome"), // "win" | "loss" | "breakeven" | null (open trade)
+  timeframe: text("timeframe"),
+  strategy: text("strategy"),
   notes: text("notes"),
   tags: text("tags").array(),
+  beforeScreenshotUrl: text("before_screenshot_url"),
+  afterScreenshotUrl: text("after_screenshot_url"),
   openedAt: timestamp("opened_at", { withTimezone: true }).notNull(),
   closedAt: timestamp("closed_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true })

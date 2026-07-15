@@ -61,3 +61,497 @@ export const GetDashboardSummaryResponse = zod.object({
 })
 
 
+/**
+ * Search, filter, sort, and paginate the authenticated user's trades.
+ * @summary List trades
+ */
+export const listTradesQuerySortByDefault = `openedAt`;
+export const listTradesQuerySortDirDefault = `desc`;
+export const listTradesQueryPageDefault = 1;
+
+export const listTradesQueryPageSizeDefault = 20;
+export const listTradesQueryPageSizeMax = 100;
+
+
+
+export const ListTradesQueryParams = zod.object({
+  "search": zod.coerce.string().optional().describe('Free-text match against symbol, strategy, and notes.'),
+  "direction": zod.enum(['long', 'short']).optional(),
+  "outcome": zod.enum(['win', 'loss', 'breakeven']).optional(),
+  "status": zod.enum(['open', 'closed']).optional(),
+  "market": zod.coerce.string().optional(),
+  "dateFrom": zod.date().optional(),
+  "dateTo": zod.date().optional(),
+  "sortBy": zod.enum(['openedAt', 'pnl', 'riskRewardRatio', 'symbol']).default(listTradesQuerySortByDefault),
+  "sortDir": zod.enum(['asc', 'desc']).default(listTradesQuerySortDirDefault),
+  "page": zod.coerce.number().min(1).default(listTradesQueryPageDefault),
+  "pageSize": zod.coerce.number().min(1).max(listTradesQueryPageSizeMax).default(listTradesQueryPageSizeDefault)
+})
+
+export const ListTradesResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.number(),
+  "symbol": zod.string(),
+  "market": zod.string(),
+  "direction": zod.enum(['long', 'short']),
+  "status": zod.enum(['open', 'closed']),
+  "entryPrice": zod.number(),
+  "exitPrice": zod.number().nullable(),
+  "stopLoss": zod.number().nullable(),
+  "takeProfit": zod.number().nullable(),
+  "lotSize": zod.number(),
+  "riskPercent": zod.number().nullable(),
+  "riskAmount": zod.number().nullable(),
+  "pnl": zod.number().nullable(),
+  "pips": zod.number().nullable(),
+  "riskRewardRatio": zod.number().nullable(),
+  "outcome": zod.union([zod.literal('win'),zod.literal('loss'),zod.literal('breakeven'),zod.literal(null)]).nullable(),
+  "timeframe": zod.string().nullable(),
+  "strategy": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "beforeScreenshotUrl": zod.string().nullable(),
+  "afterScreenshotUrl": zod.string().nullable(),
+  "openedAt": zod.coerce.date(),
+  "closedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "total": zod.number(),
+  "page": zod.number(),
+  "pageSize": zod.number()
+})
+
+
+/**
+ * @summary Create a trade
+ */
+
+
+
+
+export const CreateTradeBody = zod.object({
+  "symbol": zod.string().min(1),
+  "market": zod.string().min(1),
+  "direction": zod.enum(['long', 'short']),
+  "entryPrice": zod.number(),
+  "exitPrice": zod.number().optional(),
+  "stopLoss": zod.number().optional(),
+  "takeProfit": zod.number().optional(),
+  "lotSize": zod.number(),
+  "riskPercent": zod.number().optional(),
+  "riskAmount": zod.number().optional(),
+  "timeframe": zod.string().optional(),
+  "strategy": zod.string().optional(),
+  "notes": zod.string().optional(),
+  "beforeScreenshotUrl": zod.string().optional(),
+  "afterScreenshotUrl": zod.string().optional(),
+  "openedAt": zod.coerce.date(),
+  "closedAt": zod.coerce.date().optional()
+})
+
+export const CreateTradeResponse = zod.object({
+  "id": zod.number(),
+  "symbol": zod.string(),
+  "market": zod.string(),
+  "direction": zod.enum(['long', 'short']),
+  "status": zod.enum(['open', 'closed']),
+  "entryPrice": zod.number(),
+  "exitPrice": zod.number().nullable(),
+  "stopLoss": zod.number().nullable(),
+  "takeProfit": zod.number().nullable(),
+  "lotSize": zod.number(),
+  "riskPercent": zod.number().nullable(),
+  "riskAmount": zod.number().nullable(),
+  "pnl": zod.number().nullable(),
+  "pips": zod.number().nullable(),
+  "riskRewardRatio": zod.number().nullable(),
+  "outcome": zod.union([zod.literal('win'),zod.literal('loss'),zod.literal('breakeven'),zod.literal(null)]).nullable(),
+  "timeframe": zod.string().nullable(),
+  "strategy": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "beforeScreenshotUrl": zod.string().nullable(),
+  "afterScreenshotUrl": zod.string().nullable(),
+  "openedAt": zod.coerce.date(),
+  "closedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Get a trade
+ */
+export const GetTradeParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetTradeResponse = zod.object({
+  "id": zod.number(),
+  "symbol": zod.string(),
+  "market": zod.string(),
+  "direction": zod.enum(['long', 'short']),
+  "status": zod.enum(['open', 'closed']),
+  "entryPrice": zod.number(),
+  "exitPrice": zod.number().nullable(),
+  "stopLoss": zod.number().nullable(),
+  "takeProfit": zod.number().nullable(),
+  "lotSize": zod.number(),
+  "riskPercent": zod.number().nullable(),
+  "riskAmount": zod.number().nullable(),
+  "pnl": zod.number().nullable(),
+  "pips": zod.number().nullable(),
+  "riskRewardRatio": zod.number().nullable(),
+  "outcome": zod.union([zod.literal('win'),zod.literal('loss'),zod.literal('breakeven'),zod.literal(null)]).nullable(),
+  "timeframe": zod.string().nullable(),
+  "strategy": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "beforeScreenshotUrl": zod.string().nullable(),
+  "afterScreenshotUrl": zod.string().nullable(),
+  "openedAt": zod.coerce.date(),
+  "closedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update a trade
+ */
+export const UpdateTradeParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+
+
+
+export const UpdateTradeBody = zod.object({
+  "symbol": zod.string().min(1).optional(),
+  "market": zod.string().min(1).optional(),
+  "direction": zod.enum(['long', 'short']).optional(),
+  "entryPrice": zod.number().optional(),
+  "exitPrice": zod.number().nullish(),
+  "stopLoss": zod.number().nullish(),
+  "takeProfit": zod.number().nullish(),
+  "lotSize": zod.number().optional(),
+  "riskPercent": zod.number().nullish(),
+  "riskAmount": zod.number().nullish(),
+  "timeframe": zod.string().nullish(),
+  "strategy": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "beforeScreenshotUrl": zod.string().nullish(),
+  "afterScreenshotUrl": zod.string().nullish(),
+  "openedAt": zod.coerce.date().optional(),
+  "closedAt": zod.coerce.date().nullish()
+})
+
+export const UpdateTradeResponse = zod.object({
+  "id": zod.number(),
+  "symbol": zod.string(),
+  "market": zod.string(),
+  "direction": zod.enum(['long', 'short']),
+  "status": zod.enum(['open', 'closed']),
+  "entryPrice": zod.number(),
+  "exitPrice": zod.number().nullable(),
+  "stopLoss": zod.number().nullable(),
+  "takeProfit": zod.number().nullable(),
+  "lotSize": zod.number(),
+  "riskPercent": zod.number().nullable(),
+  "riskAmount": zod.number().nullable(),
+  "pnl": zod.number().nullable(),
+  "pips": zod.number().nullable(),
+  "riskRewardRatio": zod.number().nullable(),
+  "outcome": zod.union([zod.literal('win'),zod.literal('loss'),zod.literal('breakeven'),zod.literal(null)]).nullable(),
+  "timeframe": zod.string().nullable(),
+  "strategy": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "beforeScreenshotUrl": zod.string().nullable(),
+  "afterScreenshotUrl": zod.string().nullable(),
+  "openedAt": zod.coerce.date(),
+  "closedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a trade
+ */
+export const DeleteTradeParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteTradeResponse = zod.void()
+
+
+/**
+ * Returns the authenticated user's journal entries, optionally scoped to a month, for the calendar/history view.
+ * @summary List journal entries
+ */
+export const listJournalsQueryMonthRegExp = new RegExp('^\\d{4}-\\d{2}$');
+
+
+export const ListJournalsQueryParams = zod.object({
+  "month": zod.coerce.string().regex(listJournalsQueryMonthRegExp).optional().describe('Restrict results to this calendar month, format YYYY-MM.')
+})
+
+export const ListJournalsResponseItem = zod.object({
+  "id": zod.number(),
+  "date": zod.string(),
+  "mood": zod.number().nullable(),
+  "confidence": zod.number().nullable(),
+  "discipline": zod.number().nullable(),
+  "fear": zod.number().nullable(),
+  "greed": zod.number().nullable(),
+  "focus": zod.number().nullable(),
+  "sleep": zod.number().nullable(),
+  "tradingPlan": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "mistakes": zod.string().nullable(),
+  "lessons": zod.string().nullable(),
+  "tomorrowGoal": zod.string().nullable(),
+  "isDraft": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListJournalsResponse = zod.array(ListJournalsResponseItem)
+
+
+/**
+ * @summary Get the journal entry for a date
+ */
+export const getJournalPathDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const GetJournalParams = zod.object({
+  "date": zod.coerce.string().regex(getJournalPathDateRegExp)
+})
+
+export const GetJournalResponse = zod.object({
+  "id": zod.number(),
+  "date": zod.string(),
+  "mood": zod.number().nullable(),
+  "confidence": zod.number().nullable(),
+  "discipline": zod.number().nullable(),
+  "fear": zod.number().nullable(),
+  "greed": zod.number().nullable(),
+  "focus": zod.number().nullable(),
+  "sleep": zod.number().nullable(),
+  "tradingPlan": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "mistakes": zod.string().nullable(),
+  "lessons": zod.string().nullable(),
+  "tomorrowGoal": zod.string().nullable(),
+  "isDraft": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Create, update, or autosave the journal entry for a date
+ */
+export const upsertJournalPathDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const UpsertJournalParams = zod.object({
+  "date": zod.coerce.string().regex(upsertJournalPathDateRegExp)
+})
+
+export const UpsertJournalBody = zod.object({
+  "mood": zod.number().nullish(),
+  "confidence": zod.number().nullish(),
+  "discipline": zod.number().nullish(),
+  "fear": zod.number().nullish(),
+  "greed": zod.number().nullish(),
+  "focus": zod.number().nullish(),
+  "sleep": zod.number().nullish(),
+  "tradingPlan": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "mistakes": zod.string().nullish(),
+  "lessons": zod.string().nullish(),
+  "tomorrowGoal": zod.string().nullish(),
+  "isDraft": zod.boolean().optional()
+})
+
+export const UpsertJournalResponse = zod.object({
+  "id": zod.number(),
+  "date": zod.string(),
+  "mood": zod.number().nullable(),
+  "confidence": zod.number().nullable(),
+  "discipline": zod.number().nullable(),
+  "fear": zod.number().nullable(),
+  "greed": zod.number().nullable(),
+  "focus": zod.number().nullable(),
+  "sleep": zod.number().nullable(),
+  "tradingPlan": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "mistakes": zod.string().nullable(),
+  "lessons": zod.string().nullable(),
+  "tomorrowGoal": zod.string().nullable(),
+  "isDraft": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete the journal entry for a date
+ */
+export const deleteJournalPathDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const DeleteJournalParams = zod.object({
+  "date": zod.coerce.string().regex(deleteJournalPathDateRegExp)
+})
+
+export const DeleteJournalResponse = zod.void()
+
+
+/**
+ * @summary List trading rules
+ */
+export const ListRulesQueryParams = zod.object({
+  "search": zod.coerce.string().optional(),
+  "category": zod.coerce.string().optional()
+})
+
+export const ListRulesResponseItem = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "category": zod.string(),
+  "isActive": zod.boolean(),
+  "completed": zod.boolean(),
+  "sortOrder": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListRulesResponse = zod.array(ListRulesResponseItem)
+
+
+/**
+ * @summary Create a trading rule
+ */
+
+
+
+
+export const CreateRuleBody = zod.object({
+  "title": zod.string().min(1),
+  "description": zod.string().optional(),
+  "category": zod.string().min(1),
+  "isActive": zod.boolean().optional(),
+  "sortOrder": zod.number().optional()
+})
+
+export const CreateRuleResponse = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "category": zod.string(),
+  "isActive": zod.boolean(),
+  "completed": zod.boolean(),
+  "sortOrder": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update or toggle a trading rule
+ */
+export const UpdateRuleParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+
+
+
+export const UpdateRuleBody = zod.object({
+  "title": zod.string().min(1).optional(),
+  "description": zod.string().nullish(),
+  "category": zod.string().min(1).optional(),
+  "isActive": zod.boolean().optional(),
+  "completed": zod.boolean().optional(),
+  "sortOrder": zod.number().optional()
+})
+
+export const UpdateRuleResponse = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "category": zod.string(),
+  "isActive": zod.boolean(),
+  "completed": zod.boolean(),
+  "sortOrder": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a trading rule
+ */
+export const DeleteRuleParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteRuleResponse = zod.void()
+
+
+/**
+ * Returns a presigned GCS URL for direct upload. The client sends JSON
+ * metadata here, then uploads the file directly to the returned URL.
+ * @summary Request a presigned URL for file upload
+ */
+
+
+
+
+
+export const RequestUploadUrlBody = zod.object({
+  "name": zod.string().min(1).describe('Original file name.'),
+  "size": zod.number().min(1).describe('File size in bytes.'),
+  "contentType": zod.string().min(1).describe('MIME type of the file (e.g. `image\/jpeg`).')
+})
+
+
+
+
+
+
+export const RequestUploadUrlResponse = zod.object({
+  "uploadURL": zod.url().describe('Presigned GCS URL for PUT upload.'),
+  "objectPath": zod.string().describe('Normalized object path (e.g. `\/objects\/uploads\/uuid`). Store this in your database.'),
+  "metadata": zod.object({
+  "name": zod.string().min(1).describe('Original file name.'),
+  "size": zod.number().min(1).describe('File size in bytes.'),
+  "contentType": zod.string().min(1).describe('MIME type of the file (e.g. `image\/jpeg`).')
+}).optional()
+})
+
+
+/**
+ * Unconditionally public — no authentication or ACL checks.
+ * Searches PUBLIC_OBJECT_SEARCH_PATHS for the given file path.
+ * @summary Serve a public asset from PUBLIC_OBJECT_SEARCH_PATHS
+ */
+export const GetPublicObjectParams = zod.object({
+  "filePath": zod.coerce.string()
+})
+
+export const GetPublicObjectResponse = zod.unknown()
+
+
+/**
+ * @summary Serve an object entity from PRIVATE_OBJECT_DIR
+ */
+export const GetStorageObjectParams = zod.object({
+  "objectPath": zod.coerce.string().describe('Object path within the private object dir (e.g. `uploads\/some-uuid`).')
+})
+
+export const GetStorageObjectResponse = zod.unknown()
+
+

@@ -10,6 +10,9 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 
 import Landing from "@/pages/Landing";
 import Dashboard from "@/pages/Dashboard";
+import TradeLog from "@/pages/TradeLog";
+import Journal from "@/pages/Journal";
+import Rules from "@/pages/Rules";
 import Placeholder from "@/pages/Placeholder";
 import AppLayout from "@/components/layout/AppLayout";
 
@@ -183,11 +186,12 @@ function ClerkProviderWithRoutes() {
             
             <Route path="/dashboard" component={() => <ProtectedRoute component={Dashboard} />} />
             
-            <Route path="/trades" component={() => <ProtectedRoute component={Placeholder} title="Trade Log" description="A comprehensive ledger of all your executed trades." />} />
-            <Route path="/trades/:id" component={() => <ProtectedRoute component={Placeholder} title="Trade Details" description="In-depth analysis of a specific trade." />} />
-            <Route path="/journal" component={() => <ProtectedRoute component={Placeholder} title="Journal" description="Your daily reflections and market observations." />} />
+            <Route path="/trades" component={() => <ProtectedRoute component={TradeLog} />} />
+            <Route path="/trades/new" component={() => <ProtectedRoute component={TradeLog} />} />
+            <Route path="/trades/:id" component={() => <ProtectedRoute component={TradeLog} />} />
+            <Route path="/journal" component={() => <ProtectedRoute component={Journal} />} />
             <Route path="/reviews" component={() => <ProtectedRoute component={Placeholder} title="Reviews" description="Weekly and monthly performance breakdowns." />} />
-            <Route path="/rules" component={() => <ProtectedRoute component={Placeholder} title="Rules" description="Your trading playbook and edge definition." />} />
+            <Route path="/rules" component={() => <ProtectedRoute component={Rules} />} />
             <Route path="/analytics" component={() => <ProtectedRoute component={Placeholder} title="Analytics" description="Advanced metrics and statistical edge analysis." />} />
             <Route path="/assistant" component={() => <ProtectedRoute component={Placeholder} title="Trading Assistant" description="AI-powered insights based on your trade history." />} />
             <Route path="/settings" component={() => <ProtectedRoute component={Placeholder} title="Settings" description="Configure your command center and integrations." />} />

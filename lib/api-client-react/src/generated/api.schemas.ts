@@ -80,3 +80,353 @@ export interface DashboardSummary {
   goalProgress: GoalProgress;
 }
 
+export type TradeDirection = typeof TradeDirection[keyof typeof TradeDirection];
+
+
+export const TradeDirection = {
+  long: 'long',
+  short: 'short',
+} as const;
+
+export type TradeStatus = typeof TradeStatus[keyof typeof TradeStatus];
+
+
+export const TradeStatus = {
+  open: 'open',
+  closed: 'closed',
+} as const;
+
+/**
+ * @nullable
+ */
+export type TradeOutcome = typeof TradeOutcome[keyof typeof TradeOutcome] | null;
+
+
+export const TradeOutcome = {
+  win: 'win',
+  loss: 'loss',
+  breakeven: 'breakeven',
+} as const;
+
+export interface Trade {
+  id: number;
+  symbol: string;
+  market: string;
+  direction: TradeDirection;
+  status: TradeStatus;
+  entryPrice: number;
+  /** @nullable */
+  exitPrice: number | null;
+  /** @nullable */
+  stopLoss: number | null;
+  /** @nullable */
+  takeProfit: number | null;
+  lotSize: number;
+  /** @nullable */
+  riskPercent: number | null;
+  /** @nullable */
+  riskAmount: number | null;
+  /** @nullable */
+  pnl: number | null;
+  /** @nullable */
+  pips: number | null;
+  /** @nullable */
+  riskRewardRatio: number | null;
+  /** @nullable */
+  outcome: TradeOutcome;
+  /** @nullable */
+  timeframe: string | null;
+  /** @nullable */
+  strategy: string | null;
+  /** @nullable */
+  notes: string | null;
+  /** @nullable */
+  beforeScreenshotUrl: string | null;
+  /** @nullable */
+  afterScreenshotUrl: string | null;
+  openedAt: string;
+  /** @nullable */
+  closedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type TradeInputDirection = typeof TradeInputDirection[keyof typeof TradeInputDirection];
+
+
+export const TradeInputDirection = {
+  long: 'long',
+  short: 'short',
+} as const;
+
+export interface TradeInput {
+  /** @minLength 1 */
+  symbol: string;
+  /** @minLength 1 */
+  market: string;
+  direction: TradeInputDirection;
+  entryPrice: number;
+  exitPrice?: number;
+  stopLoss?: number;
+  takeProfit?: number;
+  lotSize: number;
+  riskPercent?: number;
+  riskAmount?: number;
+  timeframe?: string;
+  strategy?: string;
+  notes?: string;
+  beforeScreenshotUrl?: string;
+  afterScreenshotUrl?: string;
+  openedAt: string;
+  closedAt?: string;
+}
+
+export type TradeUpdateDirection = typeof TradeUpdateDirection[keyof typeof TradeUpdateDirection];
+
+
+export const TradeUpdateDirection = {
+  long: 'long',
+  short: 'short',
+} as const;
+
+export interface TradeUpdate {
+  /** @minLength 1 */
+  symbol?: string;
+  /** @minLength 1 */
+  market?: string;
+  direction?: TradeUpdateDirection;
+  entryPrice?: number;
+  /** @nullable */
+  exitPrice?: number | null;
+  /** @nullable */
+  stopLoss?: number | null;
+  /** @nullable */
+  takeProfit?: number | null;
+  lotSize?: number;
+  /** @nullable */
+  riskPercent?: number | null;
+  /** @nullable */
+  riskAmount?: number | null;
+  /** @nullable */
+  timeframe?: string | null;
+  /** @nullable */
+  strategy?: string | null;
+  /** @nullable */
+  notes?: string | null;
+  /** @nullable */
+  beforeScreenshotUrl?: string | null;
+  /** @nullable */
+  afterScreenshotUrl?: string | null;
+  openedAt?: string;
+  /** @nullable */
+  closedAt?: string | null;
+}
+
+export interface TradeListResponse {
+  items: Trade[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface JournalEntry {
+  id: number;
+  date: string;
+  /** @nullable */
+  mood: number | null;
+  /** @nullable */
+  confidence: number | null;
+  /** @nullable */
+  discipline: number | null;
+  /** @nullable */
+  fear: number | null;
+  /** @nullable */
+  greed: number | null;
+  /** @nullable */
+  focus: number | null;
+  /** @nullable */
+  sleep: number | null;
+  /** @nullable */
+  tradingPlan: string | null;
+  /** @nullable */
+  notes: string | null;
+  /** @nullable */
+  mistakes: string | null;
+  /** @nullable */
+  lessons: string | null;
+  /** @nullable */
+  tomorrowGoal: string | null;
+  isDraft: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface JournalInput {
+  /** @nullable */
+  mood?: number | null;
+  /** @nullable */
+  confidence?: number | null;
+  /** @nullable */
+  discipline?: number | null;
+  /** @nullable */
+  fear?: number | null;
+  /** @nullable */
+  greed?: number | null;
+  /** @nullable */
+  focus?: number | null;
+  /** @nullable */
+  sleep?: number | null;
+  /** @nullable */
+  tradingPlan?: string | null;
+  /** @nullable */
+  notes?: string | null;
+  /** @nullable */
+  mistakes?: string | null;
+  /** @nullable */
+  lessons?: string | null;
+  /** @nullable */
+  tomorrowGoal?: string | null;
+  isDraft?: boolean;
+}
+
+export interface Rule {
+  id: number;
+  title: string;
+  /** @nullable */
+  description: string | null;
+  category: string;
+  isActive: boolean;
+  completed: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RuleInput {
+  /** @minLength 1 */
+  title: string;
+  description?: string;
+  /** @minLength 1 */
+  category: string;
+  isActive?: boolean;
+  sortOrder?: number;
+}
+
+export interface RuleUpdate {
+  /** @minLength 1 */
+  title?: string;
+  /** @nullable */
+  description?: string | null;
+  /** @minLength 1 */
+  category?: string;
+  isActive?: boolean;
+  completed?: boolean;
+  sortOrder?: number;
+}
+
+export interface UploadUrlRequest {
+  /**
+     * Original file name.
+     * @minLength 1
+     */
+  name: string;
+  /**
+     * File size in bytes.
+     * @minimum 1
+     */
+  size: number;
+  /**
+     * MIME type of the file (e.g. `image/jpeg`).
+     * @minLength 1
+     */
+  contentType: string;
+}
+
+export interface UploadUrlResponse {
+  /** Presigned GCS URL for PUT upload. */
+  uploadURL: string;
+  /** Normalized object path (e.g. `/objects/uploads/uuid`). Store this in your database. */
+  objectPath: string;
+  metadata?: UploadUrlRequest;
+}
+
+export type ListTradesParams = {
+/**
+ * Free-text match against symbol, strategy, and notes.
+ */
+search?: string;
+direction?: ListTradesDirection;
+outcome?: ListTradesOutcome;
+status?: ListTradesStatus;
+market?: string;
+dateFrom?: string;
+dateTo?: string;
+sortBy?: ListTradesSortBy;
+sortDir?: ListTradesSortDir;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: number;
+};
+
+export type ListTradesDirection = typeof ListTradesDirection[keyof typeof ListTradesDirection];
+
+
+export const ListTradesDirection = {
+  long: 'long',
+  short: 'short',
+} as const;
+
+export type ListTradesOutcome = typeof ListTradesOutcome[keyof typeof ListTradesOutcome];
+
+
+export const ListTradesOutcome = {
+  win: 'win',
+  loss: 'loss',
+  breakeven: 'breakeven',
+} as const;
+
+export type ListTradesStatus = typeof ListTradesStatus[keyof typeof ListTradesStatus];
+
+
+export const ListTradesStatus = {
+  open: 'open',
+  closed: 'closed',
+} as const;
+
+export type ListTradesSortBy = typeof ListTradesSortBy[keyof typeof ListTradesSortBy];
+
+
+export const ListTradesSortBy = {
+  openedAt: 'openedAt',
+  pnl: 'pnl',
+  riskRewardRatio: 'riskRewardRatio',
+  symbol: 'symbol',
+} as const;
+
+export type ListTradesSortDir = typeof ListTradesSortDir[keyof typeof ListTradesSortDir];
+
+
+export const ListTradesSortDir = {
+  asc: 'asc',
+  desc: 'desc',
+} as const;
+
+export type ListJournalsParams = {
+/**
+ * Restrict results to this calendar month, format YYYY-MM.
+ * @pattern ^\d{4}-\d{2}$
+ */
+month?: string;
+};
+
+export type ListRulesParams = {
+search?: string;
+category?: string;
+};
+
