@@ -1,7 +1,7 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertCircle, Plus, BookOpen, Target, Settings, ArrowUpRight, ArrowDownRight, RefreshCcw, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useGetDashboardSummary, getGetDashboardSummaryQueryKey } from "@workspace/api-client-react";
 import { queryClient } from "@/lib/queryClient";
 import {
@@ -46,6 +46,7 @@ function StatCard({ title, value, subtext, trend, isCurrency = false }: { title:
 }
 
 export default function Dashboard() {
+  const [, setLocation] = useLocation();
   const { data, isLoading, error, refetch } = useGetDashboardSummary();
 
   if (isLoading) {
@@ -290,55 +291,103 @@ export default function Dashboard() {
               </Button>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead>
-                  <tr className="border-b border-border/50 text-muted-foreground uppercase text-[10px] tracking-wider font-mono">
-                    <th className="pb-3 font-medium">Symbol</th>
-                    <th className="pb-3 font-medium">Dir</th>
-                    <th className="pb-3 font-medium">Status</th>
-                    <th className="pb-3 font-medium text-right">Entry</th>
-                    <th className="pb-3 font-medium text-right">Exit</th>
-                    <th className="pb-3 font-medium text-right">R:R</th>
-                    <th className="pb-3 font-medium text-right">Net P/L</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/50 font-mono">
-                  {recentTrades.map((trade) => (
-                    <tr key={trade.id} className="group hover:bg-secondary/30 transition-colors">
-                      <td className="py-3 font-medium text-foreground">{trade.symbol}</td>
-                      <td className="py-3">
-                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider ${
-                          trade.direction === 'long' 
-                            ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' 
-                            : 'bg-destructive/10 text-destructive border border-destructive/20'
-                        }`}>
-                          {trade.direction === 'long' ? <ArrowUpRight className="h-3 w-3 mr-0.5" /> : <ArrowDownRight className="h-3 w-3 mr-0.5" />}
-                          {trade.direction}
-                        </span>
-                      </td>
-                      <td className="py-3">
-                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] uppercase font-medium tracking-wider ${
-                          trade.status === 'open' ? 'bg-primary/20 text-primary border border-primary/30 animate-pulse' : 'text-muted-foreground'
-                        }`}>
-                          {trade.status}
-                        </span>
-                      </td>
-                      <td className="py-3 text-right text-muted-foreground">{trade.entryPrice.toFixed(5)}</td>
-                      <td className="py-3 text-right text-muted-foreground">{trade.exitPrice ? trade.exitPrice.toFixed(5) : '-'}</td>
-                      <td className="py-3 text-right">{trade.riskRewardRatio ? `${trade.riskRewardRatio.toFixed(2)}R` : '-'}</td>
-                      <td className={`py-3 text-right font-semibold ${
-                        trade.pnl 
+            <>
+              {/* Mobile cards — shown below sm breakpoint */}
+              <div className="sm:hidden space-y-3">
+                {recentTrades.map((trade) => (
+                  <button
+                    key={trade.id}
+                    type="button"
+                    onClick={() => setLocation(`/trades/${trade.id}`)}
+                    className="w-full text-left p-3 rounded-lg border border-border bg-secondary/20 hover:bg-secondary/40 active:bg-secondary/60 transition-colors"
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="font-semibold font-mono text-sm">{trade.symbol}</span>
+                      <span className={`font-mono font-semibold text-sm ${
+                        trade.pnl
                           ? trade.pnl > 0 ? 'text-emerald-500' : trade.pnl < 0 ? 'text-destructive' : 'text-muted-foreground'
                           : 'text-muted-foreground'
                       }`}>
-                        {trade.pnl ? formatCurrency(trade.pnl) : '-'}
-                      </td>
+                        {trade.pnl ? formatCurrency(trade.pnl) : '—'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider ${
+                        trade.direction === 'long'
+                          ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                          : 'bg-destructive/10 text-destructive border border-destructive/20'
+                      }`}>
+                        {trade.direction === 'long' ? <ArrowUpRight className="h-3 w-3 mr-0.5" /> : <ArrowDownRight className="h-3 w-3 mr-0.5" />}
+                        {trade.direction}
+                      </span>
+                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] uppercase font-medium tracking-wider ${
+                        trade.status === 'open' ? 'bg-primary/20 text-primary border border-primary/30' : 'text-muted-foreground'
+                      }`}>
+                        {trade.status}
+                      </span>
+                      {trade.riskRewardRatio && (
+                        <span className="text-xs font-mono text-muted-foreground ml-auto">{trade.riskRewardRatio.toFixed(2)}R</span>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              {/* Desktop table — hidden below sm */}
+              <div className="hidden sm:block overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                  <thead>
+                    <tr className="border-b border-border/50 text-muted-foreground uppercase text-[10px] tracking-wider font-mono">
+                      <th className="pb-3 font-medium">Symbol</th>
+                      <th className="pb-3 font-medium">Dir</th>
+                      <th className="pb-3 font-medium">Status</th>
+                      <th className="pb-3 font-medium text-right">Entry</th>
+                      <th className="pb-3 font-medium text-right">Exit</th>
+                      <th className="pb-3 font-medium text-right">R:R</th>
+                      <th className="pb-3 font-medium text-right">Net P/L</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-border/50 font-mono">
+                    {recentTrades.map((trade) => (
+                      <tr
+                        key={trade.id}
+                        className="group hover:bg-secondary/30 transition-colors cursor-pointer"
+                        onClick={() => setLocation(`/trades/${trade.id}`)}
+                      >
+                        <td className="py-3 font-medium text-foreground">{trade.symbol}</td>
+                        <td className="py-3">
+                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider ${
+                            trade.direction === 'long'
+                              ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                              : 'bg-destructive/10 text-destructive border border-destructive/20'
+                          }`}>
+                            {trade.direction === 'long' ? <ArrowUpRight className="h-3 w-3 mr-0.5" /> : <ArrowDownRight className="h-3 w-3 mr-0.5" />}
+                            {trade.direction}
+                          </span>
+                        </td>
+                        <td className="py-3">
+                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] uppercase font-medium tracking-wider ${
+                            trade.status === 'open' ? 'bg-primary/20 text-primary border border-primary/30 animate-pulse' : 'text-muted-foreground'
+                          }`}>
+                            {trade.status}
+                          </span>
+                        </td>
+                        <td className="py-3 text-right text-muted-foreground">{trade.entryPrice.toFixed(5)}</td>
+                        <td className="py-3 text-right text-muted-foreground">{trade.exitPrice ? trade.exitPrice.toFixed(5) : '-'}</td>
+                        <td className="py-3 text-right">{trade.riskRewardRatio ? `${trade.riskRewardRatio.toFixed(2)}R` : '-'}</td>
+                        <td className={`py-3 text-right font-semibold ${
+                          trade.pnl
+                            ? trade.pnl > 0 ? 'text-emerald-500' : trade.pnl < 0 ? 'text-destructive' : 'text-muted-foreground'
+                            : 'text-muted-foreground'
+                        }`}>
+                          {trade.pnl ? formatCurrency(trade.pnl) : '-'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
 

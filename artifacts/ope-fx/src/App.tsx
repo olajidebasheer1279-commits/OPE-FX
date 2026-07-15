@@ -11,6 +11,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import Landing from "@/pages/Landing";
 import Dashboard from "@/pages/Dashboard";
 import TradeLog from "@/pages/TradeLog";
+import TradeDetails from "@/pages/TradeDetails";
 import Journal from "@/pages/Journal";
 import Rules from "@/pages/Rules";
 import Placeholder from "@/pages/Placeholder";
@@ -188,7 +189,7 @@ function ClerkProviderWithRoutes() {
             
             <Route path="/trades" component={() => <ProtectedRoute component={TradeLog} />} />
             <Route path="/trades/new" component={() => <ProtectedRoute component={TradeLog} />} />
-            <Route path="/trades/:id" component={() => <ProtectedRoute component={TradeLog} />} />
+            <Route path="/trades/:id" component={() => <ProtectedRoute component={TradeDetails} />} />
             <Route path="/journal" component={() => <ProtectedRoute component={Journal} />} />
             <Route path="/reviews" component={() => <ProtectedRoute component={Placeholder} title="Reviews" description="Weekly and monthly performance breakdowns." />} />
             <Route path="/rules" component={() => <ProtectedRoute component={Rules} />} />

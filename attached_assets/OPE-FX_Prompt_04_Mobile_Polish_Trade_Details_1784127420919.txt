@@ -1,0 +1,48 @@
+OPE-FX PROMPT #4 — MOBILE POLISH + TRADE DETAILS + UI FIXES
+
+Continue from the latest GitHub version of OPE-FX.
+DO NOT rebuild Foundation, Dashboard, Trade Log, Journal or Rules.
+
+OBJECTIVE
+Polish the existing application and fix all usability issues before adding new features.
+
+1. TRADE DETAILS PAGE
+- Clicking any saved trade (Trade Log or Dashboard Recent Executions) must open a dedicated Trade Details page.
+- Display all saved fields:
+  Pair, Market, Direction, Date, Time, Entry, Exit, Stop Loss, Take Profit,
+  Lot Size, Risk %, Risk Amount, Profit/Loss, Pips, Risk:Reward,
+  Timeframe, Strategy, Notes, Outcome.
+- Show Before Screenshot and After Screenshot as thumbnails.
+- Clicking an image opens a fullscreen preview.
+- Keep Edit and Delete actions available.
+
+2. IMAGE SYSTEM
+- Verify uploaded images persist after save, refresh, logout/login and reopening the trade.
+- Images must display correctly.
+
+3. DASHBOARD
+- Make Recent Executions clickable.
+- Clicking a trade opens the Trade Details page.
+- Dashboard statistics must update automatically after trade changes.
+
+4. MOBILE RESPONSIVENESS
+Optimize for iPhone Safari first, Android Chrome second.
+Fix:
+- No horizontal scrolling.
+- Cards fit all screen sizes.
+- Charts resize correctly.
+- Recent Executions responsive.
+- Improve spacing, padding, typography and touch targets.
+
+5. UI BUG FIXES
+- Fix the floating '+' button at the top-right.
+- Fix overlapping UI.
+- Ensure every page fits properly on mobile.
+
+6. TESTING
+Test Dashboard, Trade Log, Journal, Rules, Trade Details, Image Preview, Mobile Layout, Charts, Calculations and Navigation.
+
+7. GITHUB
+Commit, push to the existing GitHub repository, update PROJECT_PROGRESS.md and provide a completion report.
+
+Stop and wait for the next prompt.

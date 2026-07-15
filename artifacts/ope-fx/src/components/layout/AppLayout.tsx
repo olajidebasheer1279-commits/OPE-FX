@@ -176,6 +176,7 @@ export function Header() {
 }
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
+  const [, setLocation] = useLocation();
   return (
     <div className="min-h-[100dvh] flex bg-background text-foreground selection:bg-primary/30">
       <div className="hidden lg:block">
@@ -183,16 +184,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </div>
       <div className="flex-1 flex flex-col min-w-0">
         <Header />
-        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 lg:p-6 lg:pb-12 bg-background/50">
+        {/* pb-24 on mobile gives clearance above the FAB; lg overrides to standard padding */}
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 pb-24 lg:p-6 lg:pb-12 bg-background/50">
           <div className="max-w-7xl mx-auto w-full">
             {children}
           </div>
         </main>
       </div>
       
-      {/* Mobile Floating Action Button */}
-      <Button 
+      {/* Mobile Floating Action Button — navigates to new trade form */}
+      <Button
+        onClick={() => setLocation("/trades/new")}
         className="lg:hidden fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg shadow-primary/20 p-0 flex items-center justify-center bg-primary hover:bg-primary/90 text-primary-foreground z-50"
+        aria-label="Log new trade"
       >
         <Plus className="h-6 w-6" />
       </Button>

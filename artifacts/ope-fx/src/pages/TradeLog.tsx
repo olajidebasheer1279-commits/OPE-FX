@@ -274,7 +274,7 @@ export default function TradeLog() {
                 </thead>
                 <tbody className="divide-y divide-border/50 font-mono">
                   {data.items.map((trade) => (
-                    <tr key={trade.id} className="group hover:bg-secondary/30 transition-colors">
+                    <tr key={trade.id} className="group hover:bg-secondary/30 transition-colors cursor-pointer" onClick={() => setLocation(`/trades/${trade.id}`)}>
                       <td className="py-3 px-4 text-muted-foreground whitespace-nowrap">{format(new Date(trade.openedAt), "MMM d, yyyy")}</td>
                       <td className="py-3 px-4 font-medium text-foreground">
                         {trade.symbol}
@@ -298,10 +298,10 @@ export default function TradeLog() {
                       </td>
                       <td className="py-3 px-4 text-right">
                         <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(trade)}>
+                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); openEdit(trade); }}>
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
-                          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeletingTrade(trade)}>
+                          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); setDeletingTrade(trade); }}>
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </div>
@@ -316,17 +316,17 @@ export default function TradeLog() {
           {/* Mobile cards */}
           <div className="md:hidden space-y-3">
             {data.items.map((trade) => (
-              <div key={trade.id} className="p-4 rounded-xl border border-border bg-card shadow-sm">
+              <div key={trade.id} className="p-4 rounded-xl border border-border bg-card shadow-sm cursor-pointer active:bg-secondary/50 transition-colors" onClick={() => setLocation(`/trades/${trade.id}`)}>
                 <div className="flex items-center justify-between mb-2">
                   <div>
                     <span className="font-semibold font-mono">{trade.symbol}</span>
                     <span className="text-xs text-muted-foreground ml-2 font-sans">{trade.market}</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(trade)}>
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); openEdit(trade); }}>
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
-                    <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => setDeletingTrade(trade)}>
+                    <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={(e) => { e.stopPropagation(); setDeletingTrade(trade); }}>
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
