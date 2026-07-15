@@ -1,22 +1,13 @@
 import type { Trade } from "@workspace/db";
+import { computeTradeCalc, type Market } from "@workspace/calc-engine";
 
-export function toNumber(value: string | number | null): number {
+export function toNumber(value: string | number | null | undefined): number {
   if (value === null || value === undefined) return 0;
   return typeof value === "number" ? value : parseFloat(value);
 }
 
 function nullableNumber(value: string | number | null): number | null {
   return value === null ? null : toNumber(value);
-}
-
-/**
- * Pip size heuristic: JPY forex pairs use 0.01, other forex pairs use 0.0001.
- * For non-forex markets (e.g. synthetic indices) there is no standard pip
- * convention, so we report the raw price movement instead.
- */
-function pipSize(market: string, symbol: string): number | null {
-  if (market !== "Forex") return null;
-  return symbol.toUpperCase().includes("JPY") ? 0.01 : 0.0001;
 }
 
 export interface TradeComputationInput {
@@ -26,9 +17,8 @@ export interface TradeComputationInput {
   entryPrice: number;
   exitPrice: number | null;
   stopLoss: number | null;
+  takeProfit?: number | null;
   lotSize: number;
-  riskPercent: number | null;
-  riskAmount: number | null;
   accountBalance: number;
 }
 
@@ -43,72 +33,33 @@ export interface TradeComputationResult {
 }
 
 /**
- * Derives trade metrics on the server so the client never has to be trusted
- * with P&L/RR/outcome math. Anything the client sends for these fields is
- * ignored in favor of this computation.
+ * Derives all trade metrics using the universal calculation engine.
+ * Server is the single source of truth — client inputs for pnl/rr/risk
+ * are ignored and recomputed here.
  */
 export function computeTradeMetrics(
   input: TradeComputationInput,
 ): TradeComputationResult {
-  const {
-    symbol,
-    market,
-    direction,
-    entryPrice,
-    exitPrice,
-    stopLoss,
-    lotSize,
-    riskPercent,
-    riskAmount,
-    accountBalance,
-  } = input;
-
-  const status: "open" | "closed" = exitPrice === null ? "open" : "closed";
-  const directionSign = direction === "long" ? 1 : -1;
-
-  let pnl: number | null = null;
-  let pips: number | null = null;
-  let outcome: "win" | "loss" | "breakeven" | null = null;
-
-  if (exitPrice !== null) {
-    const priceDiff = (exitPrice - entryPrice) * directionSign;
-    pnl = priceDiff * lotSize;
-
-    const size = pipSize(market, symbol);
-    pips = size ? priceDiff / size : priceDiff;
-
-    outcome = pnl > 0 ? "win" : pnl < 0 ? "loss" : "breakeven";
-  }
-
-  let riskRewardRatio: number | null = null;
-  if (exitPrice !== null && exitPrice > 0 && stopLoss !== null) {
-    const reward = Math.abs(exitPrice - entryPrice);
-    const risk = Math.abs(entryPrice - stopLoss);
-    // Guard: if risk is essentially zero or result is absurdly large, skip
-    const ratio = risk > 0.000001 ? reward / risk : null;
-    riskRewardRatio = ratio !== null && ratio <= 99999.99 ? ratio : null;
-  }
-
-  let computedRiskPercent = riskPercent;
-  let computedRiskAmount = riskAmount;
-  if (computedRiskAmount === null && computedRiskPercent !== null && accountBalance > 0) {
-    computedRiskAmount = (accountBalance * computedRiskPercent) / 100;
-  } else if (
-    computedRiskPercent === null &&
-    computedRiskAmount !== null &&
-    accountBalance > 0
-  ) {
-    computedRiskPercent = (computedRiskAmount / accountBalance) * 100;
-  }
+  const result = computeTradeCalc({
+    market: input.market as Market,
+    symbol: input.symbol,
+    direction: input.direction,
+    entryPrice: input.entryPrice,
+    stopLoss: input.stopLoss,
+    takeProfit: input.takeProfit ?? null,
+    exitPrice: input.exitPrice,
+    lotSize: input.lotSize,
+    accountBalance: input.accountBalance,
+  });
 
   return {
-    status,
-    pnl,
-    pips,
-    riskRewardRatio,
-    outcome,
-    riskPercent: computedRiskPercent,
-    riskAmount: computedRiskAmount,
+    status: result.status,
+    pnl: result.pnl,
+    pips: result.pips,
+    riskRewardRatio: result.riskRewardRatio,
+    outcome: result.outcome,
+    riskPercent: result.riskPercent,
+    riskAmount: result.riskAmount,
   };
 }
 

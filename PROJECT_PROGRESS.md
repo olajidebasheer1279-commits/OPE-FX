@@ -33,6 +33,16 @@
   - Header bell icon now shows unread badge count, opens a Popover dropdown with mark-read, mark-all-read, and delete actions
 - [x] Reviews
 - [x] Analytics
+- [x] Universal Calculation Engine (Calc Engine Prompt)
+  - Created `lib/calc-engine` workspace package (zero external deps, shared frontend + backend)
+  - Per-instrument specs: Forex (standard + JPY + USD-base crosses), Metals (XAUUSD/XAGUSD), Indices (US30/NAS100/SPX500 etc.), Synthetic Indices (V10-V100, Crash/Boom, Jump, Step)
+  - Correct PnL formula: `priceDiff × contractSize × lotSize` — eliminates the old bug of missing the 100,000 multiplier for Forex
+  - Server `computeTradeMetrics` replaced with engine call — riskAmount, riskPercent, pips, pnl, RR now computed correctly
+  - R:R now uses TP/SL distances (pre-trade planned R:R) instead of exit/entry, falling back to actual R:R for closed trades without TP
+  - Trade form: live calculation preview panel showing SL pips, TP pips, Risk $, Risk %, Potential Profit $, Profit %, R:R, validation warnings
+  - Risk % Mode toggle: user enters target risk % → app computes correct lot size from SL distance
+  - Markets expanded: Forex, Metals, Indices, Synthetic Indices (was: Forex + Synthetic Indices only)
+  - All downstream modules (Dashboard, Analytics, OPR) auto-updated via correct stored values
 - [ ] Testing (E2E / manual test pass)
 - [ ] Production Ready
 

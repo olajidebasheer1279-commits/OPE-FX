@@ -182,6 +182,9 @@ importers:
       '@workspace/api-zod':
         specifier: workspace:*
         version: link:../../lib/api-zod
+      '@workspace/calc-engine':
+        specifier: workspace:*
+        version: link:../../lib/calc-engine
       '@workspace/db':
         specifier: workspace:*
         version: link:../../lib/db
@@ -559,6 +562,9 @@ importers:
       '@workspace/api-client-react':
         specifier: workspace:*
         version: link:../../lib/api-client-react
+      '@workspace/calc-engine':
+        specifier: workspace:*
+        version: link:../../lib/calc-engine
       '@workspace/object-storage-web':
         specifier: workspace:*
         version: link:../../lib/object-storage-web
@@ -652,6 +658,8 @@ importers:
       zod:
         specifier: 'catalog:'
         version: 4.4.3
+
+  lib/calc-engine: {}
 
   lib/db:
     dependencies:

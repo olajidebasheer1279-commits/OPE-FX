@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useEffect, useMemo, useState } from "react";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ImagePlus, Loader2, X } from "lucide-react";
+import { AlertTriangle, ImagePlus, Loader2, X, TrendingUp, TrendingDown } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -28,30 +28,43 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Badge } from "@/components/ui/badge";
 import { useUpload } from "@workspace/object-storage-web";
 import { useToast } from "@/hooks/use-toast";
 import {
   useCreateTrade,
   useUpdateTrade,
+  useGetAccount,
   getListTradesQueryKey,
   getGetDashboardSummaryQueryKey,
   type Trade,
 } from "@workspace/api-client-react";
 import { queryClient } from "@/lib/queryClient";
+import { computeTradeCalc, calcLotSizeFromRisk, type Market } from "@workspace/calc-engine";
 
-const MARKETS = ["Forex", "Synthetic Indices"] as const;
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+const MARKETS = ["Forex", "Metals", "Indices", "Synthetic Indices"] as const;
+type MarketType = (typeof MARKETS)[number];
+
+// ---------------------------------------------------------------------------
+// Form schema
+// ---------------------------------------------------------------------------
 
 const tradeFormSchema = z.object({
   symbol: z.string().min(1, "Required"),
   market: z.enum(MARKETS),
   direction: z.enum(["long", "short"]),
-  entryPrice: z.coerce.number({ message: "Required" }),
+  entryPrice: z.coerce.number({ message: "Required" }).positive("Must be > 0"),
   exitPrice: z.coerce.number().optional().or(z.literal("")),
   stopLoss: z.coerce.number().optional().or(z.literal("")),
   takeProfit: z.coerce.number().optional().or(z.literal("")),
-  lotSize: z.coerce.number({ message: "Required" }).positive(),
-  riskPercent: z.coerce.number().optional().or(z.literal("")),
-  riskAmount: z.coerce.number().optional().or(z.literal("")),
+  // Normal mode: user enters lot size
+  lotSize: z.coerce.number().optional().or(z.literal("")),
+  // Risk % mode: user enters target risk %, lot size is computed
+  targetRiskPercent: z.coerce.number().optional().or(z.literal("")),
   timeframe: z.string().optional(),
   strategy: z.string().optional(),
   notes: z.string().optional(),
@@ -60,6 +73,10 @@ const tradeFormSchema = z.object({
 });
 
 type TradeFormValues = z.infer<typeof tradeFormSchema>;
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
 function toDatetimeLocal(iso?: string | null): string {
   if (!iso) return "";
@@ -71,15 +88,14 @@ function toDatetimeLocal(iso?: string | null): string {
 function defaultValues(trade?: Trade): TradeFormValues {
   return {
     symbol: trade?.symbol ?? "",
-    market: (trade?.market as (typeof MARKETS)[number]) ?? "Forex",
+    market: (trade?.market as MarketType) ?? "Forex",
     direction: trade?.direction ?? "long",
     entryPrice: trade?.entryPrice ?? ("" as unknown as number),
     exitPrice: trade?.exitPrice ?? ("" as unknown as number),
     stopLoss: trade?.stopLoss ?? ("" as unknown as number),
     takeProfit: trade?.takeProfit ?? ("" as unknown as number),
     lotSize: trade?.lotSize ?? ("" as unknown as number),
-    riskPercent: trade?.riskPercent ?? ("" as unknown as number),
-    riskAmount: trade?.riskAmount ?? ("" as unknown as number),
+    targetRiskPercent: "" as unknown as number,
     timeframe: trade?.timeframe ?? "",
     strategy: trade?.strategy ?? "",
     notes: trade?.notes ?? "",
@@ -87,6 +103,20 @@ function defaultValues(trade?: Trade): TradeFormValues {
     closedAt: toDatetimeLocal(trade?.closedAt),
   };
 }
+
+function fmtNum(val: number | null | undefined, decimals = 2): string {
+  if (val === null || val === undefined) return "—";
+  return val.toFixed(decimals);
+}
+
+function fmtCcy(val: number | null | undefined): string {
+  if (val === null || val === undefined) return "—";
+  return `$${Math.abs(val).toFixed(2)}`;
+}
+
+// ---------------------------------------------------------------------------
+// Screenshot field (unchanged)
+// ---------------------------------------------------------------------------
 
 function ScreenshotField({
   label,
@@ -155,6 +185,156 @@ function ScreenshotField({
   );
 }
 
+// ---------------------------------------------------------------------------
+// Calculation preview panel
+// ---------------------------------------------------------------------------
+
+interface CalcPreviewPanelProps {
+  values: TradeFormValues;
+  accountBalance: number;
+  riskMode: "lot" | "riskPercent";
+}
+
+function CalcPreviewPanel({ values, accountBalance, riskMode }: CalcPreviewPanelProps) {
+  const entry = Number(values.entryPrice) || 0;
+  const sl = Number(values.stopLoss) || null;
+  const tp = Number(values.takeProfit) || null;
+  const exit = Number(values.exitPrice) || null;
+  const targetRisk = Number(values.targetRiskPercent) || null;
+
+  // In Risk % mode, compute lot size from risk %; otherwise use entered lot size
+  const lotSize = useMemo(() => {
+    if (riskMode === "riskPercent" && entry > 0 && sl !== null && targetRisk !== null && targetRisk > 0) {
+      return calcLotSizeFromRisk({
+        market: values.market as Market,
+        symbol: values.symbol || "EURUSD",
+        direction: values.direction,
+        entryPrice: entry,
+        stopLoss: sl,
+        riskPercent: targetRisk,
+        accountBalance,
+      }) ?? 0;
+    }
+    return Number(values.lotSize) || 0;
+  }, [riskMode, entry, sl, tp, targetRisk, values.market, values.symbol, values.direction, values.lotSize, accountBalance]);
+
+  const calc = useMemo(() => {
+    if (entry <= 0 || lotSize <= 0) return null;
+    return computeTradeCalc({
+      market: values.market as Market,
+      symbol: values.symbol || "EURUSD",
+      direction: values.direction,
+      entryPrice: entry,
+      stopLoss: sl,
+      takeProfit: tp,
+      exitPrice: exit,
+      lotSize,
+      accountBalance,
+    });
+  }, [entry, sl, tp, exit, lotSize, values.market, values.symbol, values.direction, accountBalance]);
+
+  // Only render if we have at least entry + one of SL/TP
+  if (!calc || (sl === null && tp === null)) {
+    return (
+      <div className="rounded-lg border border-border bg-muted/20 p-3 text-center text-xs text-muted-foreground">
+        Enter Entry and Stop Loss to see live calculations
+      </div>
+    );
+  }
+
+  const hasRisk = calc.riskAmount !== null;
+  const hasProfit = calc.potentialProfit !== null;
+
+  return (
+    <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-3">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+          Live Calculations
+        </span>
+        {riskMode === "riskPercent" && lotSize > 0 && (
+          <Badge variant="secondary" className="text-xs">
+            Computed lot: {lotSize.toFixed(2)}
+          </Badge>
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        {/* SL distance */}
+        <div className="bg-background rounded p-2 text-center">
+          <div className="text-xs text-muted-foreground mb-0.5">SL Distance</div>
+          <div className="text-sm font-semibold">
+            {calc.slPips !== null ? `${calc.slPips} pips` : "—"}
+          </div>
+        </div>
+
+        {/* TP distance */}
+        <div className="bg-background rounded p-2 text-center">
+          <div className="text-xs text-muted-foreground mb-0.5">TP Distance</div>
+          <div className="text-sm font-semibold">
+            {calc.tpPips !== null ? `${calc.tpPips} pips` : "—"}
+          </div>
+        </div>
+
+        {/* Risk amount */}
+        <div className={`rounded p-2 text-center ${hasRisk ? "bg-red-500/10" : "bg-background"}`}>
+          <div className="text-xs text-muted-foreground mb-0.5">Risk Amount</div>
+          <div className={`text-sm font-semibold ${hasRisk ? "text-red-400" : ""}`}>
+            {hasRisk ? fmtCcy(calc.riskAmount) : "—"}
+          </div>
+        </div>
+
+        {/* Risk % */}
+        <div className={`rounded p-2 text-center ${hasRisk ? "bg-red-500/10" : "bg-background"}`}>
+          <div className="text-xs text-muted-foreground mb-0.5">Risk %</div>
+          <div className={`text-sm font-semibold ${hasRisk ? "text-red-400" : ""}`}>
+            {calc.riskPercent !== null ? `${fmtNum(calc.riskPercent)}%` : "—"}
+          </div>
+        </div>
+
+        {/* Potential profit */}
+        <div className={`rounded p-2 text-center ${hasProfit ? "bg-emerald-500/10" : "bg-background"}`}>
+          <div className="text-xs text-muted-foreground mb-0.5">Pot. Profit</div>
+          <div className={`text-sm font-semibold ${hasProfit ? "text-emerald-400" : ""}`}>
+            {hasProfit ? fmtCcy(calc.potentialProfit) : "—"}
+          </div>
+        </div>
+
+        {/* Potential profit % */}
+        <div className={`rounded p-2 text-center ${hasProfit ? "bg-emerald-500/10" : "bg-background"}`}>
+          <div className="text-xs text-muted-foreground mb-0.5">Profit %</div>
+          <div className={`text-sm font-semibold ${hasProfit ? "text-emerald-400" : ""}`}>
+            {calc.potentialProfitPercent !== null ? `${fmtNum(calc.potentialProfitPercent)}%` : "—"}
+          </div>
+        </div>
+
+        {/* R:R */}
+        <div className="bg-background rounded p-2 text-center col-span-2">
+          <div className="text-xs text-muted-foreground mb-0.5">Risk : Reward</div>
+          <div className={`text-sm font-semibold ${calc.riskRewardRatio !== null && calc.riskRewardRatio >= 1 ? "text-emerald-400" : calc.riskRewardRatio !== null ? "text-orange-400" : ""}`}>
+            {calc.riskRewardRatio !== null ? `1 : ${fmtNum(calc.riskRewardRatio)}` : "—"}
+          </div>
+        </div>
+      </div>
+
+      {/* Warnings */}
+      {calc.warnings.length > 0 && (
+        <div className="space-y-1">
+          {calc.warnings.map((w, i) => (
+            <div key={i} className="flex items-start gap-1.5 text-xs text-orange-400">
+              <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+              <span>{w}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Main dialog
+// ---------------------------------------------------------------------------
+
 export function TradeFormDialog({
   open,
   onOpenChange,
@@ -167,17 +347,25 @@ export function TradeFormDialog({
   const { toast } = useToast();
   const [beforeUrl, setBeforeUrl] = useState(trade?.beforeScreenshotUrl ?? "");
   const [afterUrl, setAfterUrl] = useState(trade?.afterScreenshotUrl ?? "");
+  const [riskMode, setRiskMode] = useState<"lot" | "riskPercent">("lot");
+
+  // Get account balance for live calculations
+  const { data: accountData } = useGetAccount();
+  const accountBalance = accountData?.currentBalance ?? 10000;
 
   const form = useForm<TradeFormValues>({
     resolver: zodResolver(tradeFormSchema),
     defaultValues: defaultValues(trade),
   });
 
+  const watchedValues = useWatch({ control: form.control });
+
   useEffect(() => {
     if (open) {
       form.reset(defaultValues(trade));
       setBeforeUrl(trade?.beforeScreenshotUrl ?? "");
       setAfterUrl(trade?.afterScreenshotUrl ?? "");
+      setRiskMode("lot");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, trade]);
@@ -194,7 +382,8 @@ export function TradeFormDialog({
         toast({ title: "Trade logged" });
         onOpenChange(false);
       },
-      onError: (err) => toast({ title: "Failed to save trade", description: err.message, variant: "destructive" }),
+      onError: (err) =>
+        toast({ title: "Failed to save trade", description: err.message, variant: "destructive" }),
     },
   });
 
@@ -205,7 +394,8 @@ export function TradeFormDialog({
         toast({ title: "Trade updated" });
         onOpenChange(false);
       },
-      onError: (err) => toast({ title: "Failed to save trade", description: err.message, variant: "destructive" }),
+      onError: (err) =>
+        toast({ title: "Failed to save trade", description: err.message, variant: "destructive" }),
     },
   });
 
@@ -215,6 +405,47 @@ export function TradeFormDialog({
     const numOrUndef = (v: number | string | undefined) =>
       v === "" || v === undefined || Number.isNaN(v) ? undefined : Number(v);
 
+    // In Risk % mode, compute lot size from risk %
+    let resolvedLotSize: number;
+    if (riskMode === "riskPercent") {
+      const entry = Number(values.entryPrice);
+      const sl = Number(values.stopLoss);
+      const riskPct = Number(values.targetRiskPercent);
+      if (!entry || !sl || !riskPct) {
+        toast({
+          title: "Cannot compute lot size",
+          description: "Entry, Stop Loss, and Risk % are all required in Risk % mode.",
+          variant: "destructive",
+        });
+        return;
+      }
+      const computed = calcLotSizeFromRisk({
+        market: values.market as Market,
+        symbol: values.symbol,
+        direction: values.direction,
+        entryPrice: entry,
+        stopLoss: sl,
+        riskPercent: riskPct,
+        accountBalance,
+      });
+      if (!computed || computed <= 0) {
+        toast({
+          title: "Invalid lot size computed",
+          description: "Check your SL distance and risk % values.",
+          variant: "destructive",
+        });
+        return;
+      }
+      resolvedLotSize = computed;
+    } else {
+      const ls = Number(values.lotSize);
+      if (!ls || ls <= 0) {
+        toast({ title: "Lot size is required", variant: "destructive" });
+        return;
+      }
+      resolvedLotSize = ls;
+    }
+
     const payload = {
       symbol: values.symbol.toUpperCase(),
       market: values.market,
@@ -223,9 +454,7 @@ export function TradeFormDialog({
       exitPrice: numOrUndef(values.exitPrice),
       stopLoss: numOrUndef(values.stopLoss),
       takeProfit: numOrUndef(values.takeProfit),
-      lotSize: Number(values.lotSize),
-      riskPercent: numOrUndef(values.riskPercent),
-      riskAmount: numOrUndef(values.riskAmount),
+      lotSize: resolvedLotSize,
       timeframe: values.timeframe || undefined,
       strategy: values.strategy || undefined,
       notes: values.notes || undefined,
@@ -242,6 +471,24 @@ export function TradeFormDialog({
     }
   };
 
+  // Build the partial calc values for the preview (use the watched form state)
+  const previewValues: TradeFormValues = {
+    symbol: watchedValues.symbol ?? "",
+    market: (watchedValues.market ?? "Forex") as MarketType,
+    direction: (watchedValues.direction ?? "long") as "long" | "short",
+    entryPrice: watchedValues.entryPrice ?? ("" as unknown as number),
+    exitPrice: watchedValues.exitPrice ?? ("" as unknown as number),
+    stopLoss: watchedValues.stopLoss ?? ("" as unknown as number),
+    takeProfit: watchedValues.takeProfit ?? ("" as unknown as number),
+    lotSize: watchedValues.lotSize ?? ("" as unknown as number),
+    targetRiskPercent: watchedValues.targetRiskPercent ?? ("" as unknown as number),
+    timeframe: watchedValues.timeframe ?? "",
+    strategy: watchedValues.strategy ?? "",
+    notes: watchedValues.notes ?? "",
+    openedAt: watchedValues.openedAt ?? "",
+    closedAt: watchedValues.closedAt ?? "",
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -250,6 +497,7 @@ export function TradeFormDialog({
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            {/* ---- Symbol / Market / Direction ---- */}
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -301,23 +549,18 @@ export function TradeFormDialog({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="long">Long</SelectItem>
-                        <SelectItem value="short">Short</SelectItem>
+                        <SelectItem value="long">
+                          <span className="flex items-center gap-1.5">
+                            <TrendingUp className="h-3.5 w-3.5 text-emerald-500" /> Long
+                          </span>
+                        </SelectItem>
+                        <SelectItem value="short">
+                          <span className="flex items-center gap-1.5">
+                            <TrendingDown className="h-3.5 w-3.5 text-red-500" /> Short
+                          </span>
+                        </SelectItem>
                       </SelectContent>
                     </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="lotSize"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Lot Size</FormLabel>
-                    <FormControl>
-                      <Input type="number" step="any" {...field} />
-                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -330,19 +573,6 @@ export function TradeFormDialog({
                     <FormLabel>Entry Price</FormLabel>
                     <FormControl>
                       <Input type="number" step="any" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="exitPrice"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Exit Price</FormLabel>
-                    <FormControl>
-                      <Input type="number" step="any" placeholder="Leave blank if open" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -374,32 +604,95 @@ export function TradeFormDialog({
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="riskPercent"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Risk %</FormLabel>
-                    <FormControl>
-                      <Input type="number" step="any" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="riskAmount"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Risk Amount</FormLabel>
-                    <FormControl>
-                      <Input type="number" step="any" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            </div>
+
+            {/* ---- Risk Mode Toggle + Lot Size / Risk % ---- */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">Position sizing:</span>
+                <div className="flex rounded-md overflow-hidden border border-border">
+                  <button
+                    type="button"
+                    onClick={() => setRiskMode("lot")}
+                    className={`px-3 py-1 text-xs font-medium transition-colors ${riskMode === "lot" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}
+                  >
+                    Lot Size
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRiskMode("riskPercent")}
+                    className={`px-3 py-1 text-xs font-medium transition-colors ${riskMode === "riskPercent" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}
+                  >
+                    Risk % Mode
+                  </button>
+                </div>
+              </div>
+
+              {riskMode === "lot" ? (
+                <FormField
+                  control={form.control}
+                  name="lotSize"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Lot Size</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="any" placeholder="0.01" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              ) : (
+                <FormField
+                  control={form.control}
+                  name="targetRiskPercent"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Risk % of Balance</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          step="0.1"
+                          min="0.1"
+                          max="10"
+                          placeholder="e.g. 1.5"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      <p className="text-xs text-muted-foreground">
+                        Balance: ${accountBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </p>
+                    </FormItem>
+                  )}
+                />
+              )}
+            </div>
+
+            {/* ---- Live Calculation Preview ---- */}
+            <CalcPreviewPanel
+              values={previewValues}
+              accountBalance={accountBalance}
+              riskMode={riskMode}
+            />
+
+            {/* ---- Exit Price ---- */}
+            <FormField
+              control={form.control}
+              name="exitPrice"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Exit Price</FormLabel>
+                  <FormControl>
+                    <Input type="number" step="any" placeholder="Leave blank if open" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* ---- Timeframe / Strategy / Dates ---- */}
+            <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="timeframe"

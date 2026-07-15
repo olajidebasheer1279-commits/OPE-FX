@@ -94,9 +94,8 @@ router.post("/trades", requireAuth, async (req, res): Promise<void> => {
     entryPrice: body.entryPrice,
     exitPrice: body.exitPrice ?? null,
     stopLoss: body.stopLoss ?? null,
+    takeProfit: body.takeProfit ?? null,
     lotSize: body.lotSize,
-    riskPercent: body.riskPercent ?? null,
-    riskAmount: body.riskAmount ?? null,
     accountBalance: toNumber(account.currentBalance),
   });
 
@@ -251,9 +250,8 @@ router.patch("/trades/:id", requireAuth, async (req, res): Promise<void> => {
     entryPrice: merged.entryPrice,
     exitPrice: merged.exitPrice,
     stopLoss: merged.stopLoss,
+    takeProfit: merged.takeProfit,
     lotSize: merged.lotSize,
-    riskPercent: merged.riskPercent,
-    riskAmount: merged.riskAmount,
     accountBalance: toNumber(account.currentBalance),
   });
 

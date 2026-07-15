@@ -1,0 +1,41 @@
+OPE-FX CALCULATION ENGINE FIX
+
+Fix the calculation engine before adding new features.
+
+Build a universal calculation engine for Forex, Metals, Indices and Synthetic Indices.
+
+User inputs:
+- Market
+- Entry
+- Stop Loss
+- Take Profit
+- Lot Size
+
+Automatically calculate:
+- Stop-loss distance
+- Take-profit distance
+- Risk Amount ($)
+- Risk Percentage (% of CURRENT balance)
+- Potential Profit ($)
+- Potential Profit (%)
+- Risk:Reward
+
+Update all values instantly when inputs change.
+
+Add an optional Risk % Mode where the user enters a risk percentage and the app calculates the correct lot size.
+
+Synchronize all calculations with:
+- Dashboard
+- Current Balance
+- Analytics
+- Reviews
+- OPR
+- Notifications
+
+Editing or deleting trades must recalculate everything.
+
+Validate inconsistent values and warn the user.
+
+Test using Forex, Gold, Indices and Synthetic Indices.
+
+Commit, push to GitHub, update PROJECT_PROGRESS.md and provide a completion report.
