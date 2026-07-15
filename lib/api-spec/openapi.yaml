@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: dashboard
+    description: Dashboard operations
 paths:
   /healthz:
     get:
@@ -24,6 +26,25 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get dashboard summary
+      description: Returns aggregate trading statistics, equity curve, outcome breakdown, goal progress, and recent trades for the authenticated user's primary account.
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +54,126 @@ components:
           type: string
       required:
         - status
-
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+    TradeSummary:
+      type: object
+      required:
+        - id
+        - symbol
+        - direction
+        - status
+        - entryPrice
+        - exitPrice
+        - pnl
+        - riskRewardRatio
+        - lotSize
+        - openedAt
+        - closedAt
+      properties:
+        id:
+          type: integer
+        symbol:
+          type: string
+        direction:
+          type: string
+          enum: [long, short]
+        status:
+          type: string
+          enum: [open, closed]
+        entryPrice:
+          type: number
+        exitPrice:
+          type: ["number", "null"]
+        pnl:
+          type: ["number", "null"]
+        riskRewardRatio:
+          type: ["number", "null"]
+        lotSize:
+          type: number
+        openedAt:
+          type: string
+          format: date-time
+        closedAt:
+          type: ["string", "null"]
+          format: date-time
+    EquityPoint:
+      type: object
+      required: [date, balance]
+      properties:
+        date:
+          type: string
+          format: date-time
+        balance:
+          type: number
+    OutcomeBreakdown:
+      type: object
+      required: [wins, losses, breakeven]
+      properties:
+        wins:
+          type: integer
+        losses:
+          type: integer
+        breakeven:
+          type: integer
+    GoalProgress:
+      type: object
+      required: [targetBalance, currentBalance, progressPercent]
+      properties:
+        targetBalance:
+          type: number
+        currentBalance:
+          type: number
+        progressPercent:
+          type: number
+    DashboardSummary:
+      type: object
+      required:
+        - currentBalance
+        - todayPnl
+        - weeklyPnl
+        - monthlyPnl
+        - winRate
+        - avgRiskReward
+        - totalTrades
+        - winningTrades
+        - losingTrades
+        - recentTrades
+        - equityCurve
+        - outcomeBreakdown
+        - goalProgress
+      properties:
+        currentBalance:
+          type: number
+        todayPnl:
+          type: number
+        weeklyPnl:
+          type: number
+        monthlyPnl:
+          type: number
+        winRate:
+          type: number
+        avgRiskReward:
+          type: number
+        totalTrades:
+          type: integer
+        winningTrades:
+          type: integer
+        losingTrades:
+          type: integer
+        recentTrades:
+          type: array
+          items:
+            $ref: "#/components/schemas/TradeSummary"
+        equityCurve:
+          type: array
+          items:
+            $ref: "#/components/schemas/EquityPoint"
+        outcomeBreakdown:
+          $ref: "#/components/schemas/OutcomeBreakdown"
+        goalProgress:
+          $ref: "#/components/schemas/GoalProgress"

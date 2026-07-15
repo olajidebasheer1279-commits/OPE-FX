@@ -1,0 +1,185 @@
+OPE-FX REPLIT PROMPT #1 (FOUNDATION)
+
+PART 1
+==================================================
+You are a senior full-stack software engineer and UI/UX architect.
+
+Your task is to build a production-quality web application called OPE-FX.
+
+IMPORTANT RULES
+
+- Do NOT skip any requested feature.
+- Do NOT replace requested functionality with placeholders.
+- Do NOT simplify features unless technically impossible.
+- Do NOT stop after writing code.
+- After coding, run the application.
+- Test every feature you implemented.
+- Fix every bug you discover.
+- Run npm typecheck.
+- Resolve every NEW error before stopping.
+- Update PROJECT_PROGRESS.md after completing this phase.
+- Only report completion after everything in this phase works correctly.
+
+PROJECT
+Project Name: OPE-FX
+
+Purpose:
+Professional trading journal for Forex and Synthetic traders focused on discipline, consistency, psychology, risk management and analytics.
+
+Tech Stack:
+React, TypeScript, Vite, TailwindCSS, shadcn/ui, React Router, TanStack Query, React Hook Form, Zod, Node.js, Express, Drizzle ORM, PostgreSQL, Clerk Authentication, Recharts.
+
+Create routes:
+/, /dashboard, /trades, /trades/:id, /journal, /reviews, /rules, /analytics, /assistant, /settings, /help
+
+Use PostgreSQL and Drizzle.
+Prepare tables:
+Users, Accounts, Trades, Journals, Reviews, Rules, Notifications, Uploads, Achievements.
+
+Create PROJECT_PROGRESS.md with:
+☐ Foundation
+☐ Authentication
+☐ Database
+☐ Dashboard
+☐ Trade Log
+☐ Journal
+☐ Rules
+☐ Reviews
+☐ Analytics
+☐ Trading Assistant
+☐ Settings
+☐ Testing
+☐ Production Ready
+
+==================================================
+PART 2
+==================================================
+
+Build a premium responsive UI.
+
+Desktop:
+Top Header
+Left Sidebar
+Main Content
+
+Header:
+OPE-FX Logo
+Search Bar
+Current Balance
+Today's P/L
+Notification Bell
+Profile Avatar
+
+Sidebar:
+Dashboard
+Trade Log
+Journal
+Reviews
+Rules
+Analytics
+Trading Assistant
+Settings
+Help
+Logout
+
+Mobile:
+Hamburger Menu
+Slide-out Drawer
+Floating New Trade Button
+Sticky Save Buttons
+
+Create reusable components:
+AppLayout
+Sidebar
+Header
+MobileDrawer
+Cards
+Buttons
+Inputs
+Dialogs
+Loading
+Error States
+Toast Notifications
+
+Default theme:
+Dark
+Blue Accent
+
+Support widths:
+320, 375, 390, 414, 768, 1024, 1280, 1440
+
+Configure TanStack Query, React Hook Form, Zod.
+
+Protect authenticated pages and API endpoints.
+
+Prepare README.md, .gitignore and .env.example.
+
+Before completion:
+Run app
+Verify authentication
+Verify routing
+Verify desktop/mobile navigation
+Run typecheck
+Fix new errors
+Update PROJECT_PROGRESS.md
+Mark only Foundation complete.
+
+==================================================
+PART 3
+==================================================
+
+Folder structure:
+
+client/src/
+components/
+pages/
+hooks/
+services/
+lib/
+utils/
+types/
+context/
+assets/
+styles/
+
+server/
+api/
+routes/
+middleware/
+services/
+database/
+schema/
+utils/
+
+shared/
+types/
+constants/
+
+Coding standards:
+TypeScript everywhere.
+Reusable components.
+Readable code.
+No unnecessary duplication.
+
+Performance:
+Lazy load pages where appropriate.
+Optimize rendering.
+
+Environment variables:
+DATABASE_URL
+CLERK_SECRET_KEY
+VITE_CLERK_PUBLISHABLE_KEY
+NODE_ENV
+
+Testing:
+Verify project starts
+Verify routes
+Verify mobile drawer
+Verify theme
+Verify no TypeScript errors
+Verify no console errors
+
+IMPORTANT:
+Do NOT build Dashboard, Trade Log, Journal, Reviews, Rules, Analytics or Trading Assistant yet.
+Only prepare the project foundation.
+Stop after Foundation is complete and wait for Prompt #2.

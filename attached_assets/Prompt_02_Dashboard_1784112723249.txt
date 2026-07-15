@@ -1,0 +1,82 @@
+OPE-FX REPLIT PROMPT #2 – DASHBOARD
+
+You are continuing the existing OPE-FX project.
+Do NOT recreate the project or modify the completed Foundation except where required for the Dashboard.
+
+OBJECTIVE
+Replace the placeholder Dashboard page with a fully functional dashboard.
+
+BUILD
+
+1. Dashboard API
+- Replace placeholder /dashboard data with real database queries.
+- Return:
+  - Current Balance
+  - Today's P/L
+  - Weekly P/L
+  - Monthly P/L
+  - Overall Win Rate
+  - Average Risk:Reward
+  - Total Trades
+  - Winning Trades
+  - Losing Trades
+  - Recent Trades (latest 10)
+
+2. Dashboard UI
+Top cards:
+- Current Balance
+- Today's P/L
+- Weekly P/L
+- Monthly P/L
+- Win Rate
+- Average R:R
+
+Charts:
+- Equity Curve (Recharts)
+- Trade Outcome Breakdown (Win/Loss/Break-even)
+
+Sections:
+- Goal Progress
+- Recent Trades
+- Quick Actions:
+  - New Trade
+  - Journal
+  - Rules
+  - Reviews
+
+3. States
+- Loading skeletons
+- Friendly error state with Retry
+- Empty state when no trades exist
+
+4. Mobile
+- Fully responsive
+- No horizontal scrolling
+- Cards stack correctly
+- Charts resize correctly
+
+5. Performance
+- Cache dashboard query where appropriate.
+- Avoid unnecessary requests.
+
+6. Testing
+Verify:
+- Dashboard loads after sign in.
+- Statistics are correct.
+- Charts render.
+- Mobile layout works.
+- No console errors.
+- No new TypeScript errors.
+
+Update PROJECT_PROGRESS.md:
+Mark Dashboard complete.
+Do NOT start Trade Log, Journal, Rules, Reviews or Analytics.
+
+Provide:
+- Summary of work
+- Files changed
+- APIs added/updated
+- Tests performed
+- Remaining issues (if any)
+
+Stop and wait for Prompt #3.

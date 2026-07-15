@@ -1,0 +1,2 @@
+- [Phased build specs](phased-build-specs.md) — when a user gives multi-prompt specs (e.g. "Foundation" then "Dashboard"), build only what the active prompt allows; stub the rest as real routes with clean placeholders.
+- [Dashboard aggregate endpoints](dashboard-empty-state.md) — design zero-state aggregates so "no account yet" and "no trades yet" both return a well-formed object, not an error.

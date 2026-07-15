@@ -1,0 +1,225 @@
+import { useEffect, useRef } from "react";
+import { ClerkProvider, SignIn, SignUp, Show, useClerk } from '@clerk/react';
+import { publishableKeyFromHost } from '@clerk/react/internal';
+import { shadcn } from '@clerk/themes';
+import { Switch, Route, useLocation, Router as WouterRouter, Redirect } from 'wouter';
+import { queryClient } from "./lib/queryClient";
+import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
+import { Toaster } from "@/components/ui/toaster";
+import { TooltipProvider } from "@/components/ui/tooltip";
+
+import Landing from "@/pages/Landing";
+import Dashboard from "@/pages/Dashboard";
+import Placeholder from "@/pages/Placeholder";
+import AppLayout from "@/components/layout/AppLayout";
+
+const clerkPubKey = publishableKeyFromHost(
+  window.location.hostname,
+  import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
+);
+
+const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
+const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+function stripBase(path: string): string {
+  return basePath && path.startsWith(basePath)
+    ? path.slice(basePath.length) || "/"
+    : path;
+}
+
+if (!clerkPubKey) {
+  throw new Error('Missing VITE_CLERK_PUBLISHABLE_KEY in .env file');
+}
+
+const clerkAppearance = {
+  theme: shadcn,
+  cssLayerName: "clerk",
+  options: {
+    logoPlacement: "inside" as const,
+    logoLinkUrl: basePath || "/",
+    logoImageUrl: `${window.location.origin}${basePath}/logo.svg`,
+  },
+  variables: {
+    colorPrimary: "hsl(221 83% 53%)",
+    colorForeground: "hsl(210 40% 98%)",
+    colorMutedForeground: "hsl(215 20% 65%)",
+    colorDanger: "hsl(0 62.8% 30.6%)",
+    colorBackground: "hsl(222 47% 8%)",
+    colorInput: "hsl(217 33% 17%)",
+    colorInputForeground: "hsl(210 40% 98%)",
+    colorNeutral: "hsl(217 33% 17%)",
+    fontFamily: "'Inter', sans-serif",
+    borderRadius: "0.5rem",
+  },
+  elements: {
+    rootBox: "w-full flex justify-center",
+    cardBox: "bg-card border border-border rounded-2xl w-[440px] max-w-full overflow-hidden shadow-xl",
+    card: "!shadow-none !border-0 !bg-transparent !rounded-none",
+    footer: "!shadow-none !border-0 !bg-transparent !rounded-none",
+    headerTitle: "text-foreground font-semibold",
+    headerSubtitle: "text-muted-foreground",
+    socialButtonsBlockButtonText: "text-foreground font-medium",
+    formFieldLabel: "text-foreground font-medium",
+    footerActionLink: "text-primary hover:text-primary/90 font-medium",
+    footerActionText: "text-muted-foreground",
+    dividerText: "text-muted-foreground bg-card px-2",
+    identityPreviewEditButton: "text-primary hover:text-primary/90",
+    formFieldSuccessText: "text-green-500",
+    alertText: "text-foreground",
+    logoBox: "h-12 flex items-center justify-center",
+    logoImage: "h-10",
+    socialButtonsBlockButton: "border border-border hover:bg-muted/50 transition-colors",
+    formButtonPrimary: "bg-primary hover:bg-primary/90 text-primary-foreground transition-colors",
+    formFieldInput: "bg-input border border-border text-foreground rounded-md",
+    footerAction: "bg-card border-t border-border",
+    dividerLine: "bg-border",
+    alert: "bg-destructive/20 border border-destructive text-foreground",
+    otpCodeFieldInput: "bg-input border border-border text-foreground",
+    formFieldRow: "mb-4",
+    main: "flex flex-col gap-4",
+  },
+};
+
+function SignInPage() {
+  return (
+    <div className="flex min-h-[100dvh] items-center justify-center bg-background px-4">
+      <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} />
+    </div>
+  );
+}
+
+function SignUpPage() {
+  return (
+    <div className="flex min-h-[100dvh] items-center justify-center bg-background px-4">
+      <SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} />
+    </div>
+  );
+}
+
+function HomeRedirect() {
+  return (
+    <>
+      <Show when="signed-in">
+        <Redirect to="/dashboard" />
+      </Show>
+      <Show when="signed-out">
+        <Landing />
+      </Show>
+    </>
+  );
+}
+
+function ProtectedRoute({ component: Component, title, description }: { component: React.ComponentType, title?: string, description?: string }) {
+  return (
+    <>
+      <Show when="signed-in">
+        <AppLayout>
+          {title ? <Placeholder title={title} description={description} /> : <Component />}
+        </AppLayout>
+      </Show>
+      <Show when="signed-out">
+        <Redirect to="/" />
+      </Show>
+    </>
+  );
+}
+
+function ClerkQueryClientCacheInvalidator() {
+  const { addListener } = useClerk();
+  const queryClient = useQueryClient();
+  const prevUserIdRef = useRef<string | null | undefined>(undefined);
+
+  useEffect(() => {
+    const unsubscribe = addListener(({ user }) => {
+      const userId = user?.id ?? null;
+      if (
+        prevUserIdRef.current !== undefined &&
+        prevUserIdRef.current !== userId
+      ) {
+        queryClient.clear();
+      }
+      prevUserIdRef.current = userId;
+    });
+    return unsubscribe;
+  }, [addListener, queryClient]);
+
+  return null;
+}
+
+function ClerkProviderWithRoutes() {
+  const [, setLocation] = useLocation();
+
+  return (
+    <ClerkProvider
+      publishableKey={clerkPubKey}
+      proxyUrl={clerkProxyUrl}
+      appearance={clerkAppearance}
+      signInUrl={`${basePath}/sign-in`}
+      signUpUrl={`${basePath}/sign-up`}
+      localization={{
+        signIn: {
+          start: {
+            title: "Access OPE-FX",
+            subtitle: "Enter your command center",
+          },
+        },
+        signUp: {
+          start: {
+            title: "Initialize OPE-FX",
+            subtitle: "Begin your professional trading journey",
+          },
+        },
+      }}
+      routerPush={(to) => setLocation(stripBase(to))}
+      routerReplace={(to) => setLocation(stripBase(to), { replace: true })}
+    >
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <ClerkQueryClientCacheInvalidator />
+          <Switch>
+            <Route path="/" component={HomeRedirect} />
+            <Route path="/sign-in/*?" component={SignInPage} />
+            <Route path="/sign-up/*?" component={SignUpPage} />
+            
+            <Route path="/dashboard" component={() => <ProtectedRoute component={Dashboard} />} />
+            
+            <Route path="/trades" component={() => <ProtectedRoute component={Placeholder} title="Trade Log" description="A comprehensive ledger of all your executed trades." />} />
+            <Route path="/trades/:id" component={() => <ProtectedRoute component={Placeholder} title="Trade Details" description="In-depth analysis of a specific trade." />} />
+            <Route path="/journal" component={() => <ProtectedRoute component={Placeholder} title="Journal" description="Your daily reflections and market observations." />} />
+            <Route path="/reviews" component={() => <ProtectedRoute component={Placeholder} title="Reviews" description="Weekly and monthly performance breakdowns." />} />
+            <Route path="/rules" component={() => <ProtectedRoute component={Placeholder} title="Rules" description="Your trading playbook and edge definition." />} />
+            <Route path="/analytics" component={() => <ProtectedRoute component={Placeholder} title="Analytics" description="Advanced metrics and statistical edge analysis." />} />
+            <Route path="/assistant" component={() => <ProtectedRoute component={Placeholder} title="Trading Assistant" description="AI-powered insights based on your trade history." />} />
+            <Route path="/settings" component={() => <ProtectedRoute component={Placeholder} title="Settings" description="Configure your command center and integrations." />} />
+            <Route path="/help" component={() => <ProtectedRoute component={Placeholder} title="Help" description="Documentation and support resources." />} />
+            
+            <Route component={() => (
+              <div className="flex h-[100dvh] items-center justify-center">
+                <div className="text-center space-y-4">
+                  <h1 className="text-4xl font-bold font-mono">404</h1>
+                  <p className="text-muted-foreground">Coordinates unmapped. Sector not found.</p>
+                </div>
+              </div>
+            )} />
+          </Switch>
+          <Toaster />
+        </TooltipProvider>
+      </QueryClientProvider>
+    </ClerkProvider>
+  );
+}
+
+function App() {
+  // Ensure dark mode class is always applied for consistency if any external component expects it
+  useEffect(() => {
+    document.documentElement.classList.add('dark');
+  }, []);
+
+  return (
+    <WouterRouter base={basePath}>
+      <ClerkProviderWithRoutes />
+    </WouterRouter>
+  );
+}
+
+export default App;

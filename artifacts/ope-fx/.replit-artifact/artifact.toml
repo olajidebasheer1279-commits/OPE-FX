@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "OPE-FX"
+version = "1.0.0"
+id = "artifacts/ope-fx"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19427
+
+[services.development]
+run = "pnpm --filter @workspace/ope-fx run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/ope-fx", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/ope-fx/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19427"
+BASE_PATH = "/"

@@ -1,6 +1,6 @@
-# [Project name]
+# OPE-FX
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A professional trading journal for Forex and synthetic-indices traders, focused on discipline, consistency, psychology, risk management, and analytics.
 
 ## Run & Operate
 
@@ -22,15 +22,26 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/ope-fx` — React/Vite frontend (all pages, app shell, Clerk wiring)
+- `artifacts/api-server` — Express API (routes in `src/routes`, dashboard aggregation logic in `src/lib/dashboard.ts`, Clerk middleware in `src/middlewares`)
+- `lib/db/src/schema` — Drizzle schema, one file per table (users, accounts, trades, journals, reviews, rules, notifications, uploads, achievements)
+- `lib/api-spec/openapi.yaml` — source of truth for the API contract; run codegen after editing
+- `PROJECT_PROGRESS.md` — feature checklist tracked across build phases
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Users table is keyed by the Clerk user id (text PK) and JIT-provisioned on first authenticated request (`requireAuth` middleware), rather than a separate serial id joined to an external auth id.
+- The dashboard is a single aggregate endpoint (`GET /api/dashboard/summary`) computed on the fly from `accounts`/`trades` rather than a denormalized stats table — simplest correct approach at this data volume.
+- A user with no trading account yet gets a well-formed zeroed `DashboardSummary` (not a 404/error), so the frontend's empty state is reachable without special-casing "no account" vs "no trades".
+- Only Dashboard is fully functional per the phased spec; Trade Log, Journal, Reviews, Rules, Analytics, and Trading Assistant are placeholder pages inside the real app shell/routes, intentionally deferred to future prompts.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- Public landing page at `/`, redirects signed-in users to `/dashboard`.
+- Clerk-backed auth (email + Google) with custom-branded sign-in/sign-up.
+- App shell: header (search, balance, today's P/L, notifications, avatar) + sidebar nav, mobile hamburger/drawer + floating "New Trade" button.
+- Dashboard: balance/P&L/win-rate/R:R stat cards, equity curve, outcome breakdown, goal progress, recent trades, quick actions, loading/error/empty states.
+- Trade Log, Journal, Reviews, Rules, Analytics, and Trading Assistant are "coming soon" placeholders awaiting future prompts.
 
 ## User preferences
 
@@ -38,7 +49,8 @@ _Populate as you build — explicit user instructions worth remembering across s
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- After changing `lib/api-spec/openapi.yaml`, run `pnpm --filter @workspace/api-spec run codegen` before using new hooks/schemas in the frontend or backend.
+- After changing DB schema files, run `pnpm --filter @workspace/db run push` to apply to the dev database.
 
 ## Pointers
 
