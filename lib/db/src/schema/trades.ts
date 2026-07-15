@@ -32,7 +32,7 @@ export const tradesTable = pgTable("trades", {
   riskAmount: numeric("risk_amount", { precision: 14, scale: 2 }),
   pnl: numeric("pnl", { precision: 14, scale: 2 }),
   pips: numeric("pips", { precision: 10, scale: 2 }),
-  riskRewardRatio: numeric("risk_reward_ratio", { precision: 6, scale: 2 }),
+  riskRewardRatio: numeric("risk_reward_ratio", { precision: 10, scale: 2 }),
   outcome: text("outcome"), // "win" | "loss" | "breakeven" | null (open trade)
   timeframe: text("timeframe"),
   strategy: text("strategy"),

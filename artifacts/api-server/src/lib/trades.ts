@@ -81,10 +81,12 @@ export function computeTradeMetrics(
   }
 
   let riskRewardRatio: number | null = null;
-  if (exitPrice !== null && stopLoss !== null) {
+  if (exitPrice !== null && exitPrice > 0 && stopLoss !== null) {
     const reward = Math.abs(exitPrice - entryPrice);
     const risk = Math.abs(entryPrice - stopLoss);
-    riskRewardRatio = risk > 0 ? reward / risk : null;
+    // Guard: if risk is essentially zero or result is absurdly large, skip
+    const ratio = risk > 0.000001 ? reward / risk : null;
+    riskRewardRatio = ratio !== null && ratio <= 99999.99 ? ratio : null;
   }
 
   let computedRiskPercent = riskPercent;
