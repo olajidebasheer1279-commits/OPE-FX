@@ -111,7 +111,7 @@ router.patch("/account", requireAuth, async (req, res): Promise<void> => {
     if (Object.keys(accountUpdate).length > 0) {
       await db
         .update(accountsTable)
-        .set(accountUpdate as Parameters<typeof db.update>[0]["set"])
+        .set(accountUpdate as Record<string, unknown>)
         .where(eq(accountsTable.id, account.id));
 
       // If starting balance changed (but not an explicit currentBalance override), recompute

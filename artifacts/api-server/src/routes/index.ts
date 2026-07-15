@@ -10,6 +10,7 @@ import storageRouter from "./storage";
 import accountRouter from "./account";
 import notificationsRouter from "./notifications";
 import assistantRouter from "./assistant";
+import backupRouter from "./backup";
 
 const router: IRouter = Router();
 
@@ -24,5 +25,6 @@ router.use(storageRouter);
 router.use(accountRouter);
 router.use(notificationsRouter);
 router.use(assistantRouter);
+router.use(backupRouter);
 
 export default router;

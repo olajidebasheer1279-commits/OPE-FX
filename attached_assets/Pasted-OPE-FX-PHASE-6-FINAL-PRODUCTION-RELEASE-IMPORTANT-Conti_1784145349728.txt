@@ -1,0 +1,257 @@
+OPE-FX PHASE 6 — FINAL PRODUCTION RELEASE
+
+IMPORTANT
+
+Continue from the latest GitHub version.
+
+Do NOT rebuild completed features.
+
+This is the final production phase.
+
+The goal is to make OPE-FX production-ready.
+
+===================================================
+PART A — SECURITY
+===================================================
+
+Verify the entire authentication system.
+
+• Verify Clerk authentication.
+
+• Protect every API endpoint.
+
+• Ensure complete user data isolation.
+
+• Prevent users from accessing another user's data.
+
+• Validate every user input.
+
+• Improve application security.
+
+===================================================
+PART B — BACKUP & RESTORE
+===================================================
+
+Create a complete backup system.
+
+Allow users to:
+
+• Export Trade Log (CSV)
+
+• Export Journal (PDF)
+
+• Export Reviews (PDF)
+
+• Backup all application data
+
+• Import previous backups
+
+Verify that imported backups restore all data correctly.
+
+===================================================
+PART C — PERFORMANCE OPTIMIZATION
+===================================================
+
+Optimize the entire application.
+
+Improve:
+
+• Dashboard loading
+
+• Analytics loading
+
+• Database queries
+
+• API performance
+
+• Mobile responsiveness
+
+• Reduce unnecessary re-renders
+
+• Reduce unnecessary API calls
+
+Application should feel smooth on mobile.
+
+===================================================
+PART D — ERROR HANDLING
+===================================================
+
+Replace technical errors with friendly user messages.
+
+Example:
+
+Unable to load Dashboard.
+
+[ Retry ]
+
+Instead of crashes.
+
+Handle:
+
+• Network failures
+
+• Database failures
+
+• API failures
+
+• Empty data
+
+• Invalid input
+
+===================================================
+PART E — FINAL MOBILE POLISH
+===================================================
+
+Test every page on:
+
+• iPhone
+
+• Android
+
+Ensure:
+
+• No horizontal scrolling
+
+• No overflow
+
+• Proper spacing
+
+• Proper font sizes
+
+• Proper button alignment
+
+• Responsive tables
+
+===================================================
+PART F — COMPLETE QUALITY ASSURANCE
+===================================================
+
+Perform complete testing.
+
+Verify:
+
+✓ Login
+
+✓ Logout
+
+✓ Dashboard
+
+✓ Current Balance
+
+✓ Risk Calculator
+
+✓ Universal Calculation Engine
+
+✓ Trade Log
+
+✓ Trade Details
+
+✓ Journal
+
+✓ Rules
+
+✓ Reviews
+
+✓ Analytics
+
+✓ OPE Performance Rating (OPR)
+
+✓ Trading Assistant
+
+✓ Notifications
+
+✓ Settings
+
+✓ Export
+
+✓ Import
+
+✓ Balance Synchronization
+
+✓ Analytics Synchronization
+
+✓ Calculator Synchronization
+
+Fix every issue found before completion.
+
+===================================================
+PART G — CODE CLEANUP
+===================================================
+
+Remove:
+
+• Demo data
+
+• Placeholder values
+
+• Dead code
+
+• Unused components
+
+• Unused API endpoints
+
+Clean and optimize the project.
+
+===================================================
+PART H — DOCUMENTATION
+===================================================
+
+Update:
+
+README.md
+
+PROJECT_PROGRESS.md
+
+Include:
+
+• Completed Features
+
+• Folder Structure
+
+• Technology Stack
+
+• Installation Guide
+
+• Deployment Guide
+
+===================================================
+PART I — GITHUB
+===================================================
+
+Commit all changes.
+
+Push to the existing GitHub repository.
+
+Create Git Tag:
+
+v1.0
+
+Provide a final report containing:
+
+• Files Changed
+
+• Features Completed
+
+• Bugs Fixed
+
+• Tests Performed
+
+• Performance Improvements
+
+• Security Improvements
+
+• GitHub Push Confirmation
+
+• Release Confirmation
+
+===================================================
+FINAL NOTE
+===================================================
+
+Image upload/storage configuration is the only remaining environment-specific feature.
+
+If image upload still depends on Replit workspace configuration, document exactly what environment variables or storage configuration are required for production instead of hardcoding workspace-specific values.
+
+Everything else must be production-ready.
+
+Stop after OPE-FX Version 1.0 is complete and provide the final release report.

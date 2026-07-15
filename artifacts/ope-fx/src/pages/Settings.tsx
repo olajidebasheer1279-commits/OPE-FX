@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useClerk, useUser } from "@clerk/react";
 import { UserProfile } from "@clerk/react";
 import { shadcn } from "@clerk/themes";
@@ -7,11 +7,16 @@ import {
   Wallet,
   TrendingUp,
   Download,
+  Upload,
   LogOut,
   Save,
   AlertTriangle,
   CheckCircle,
   RefreshCw,
+  Archive,
+  FileText,
+  FileDown,
+  Loader2,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -98,81 +103,91 @@ function AccountTab() {
   const [name, setName] = useState("");
   const [broker, setBroker] = useState("");
   const [currency, setCurrency] = useState("USD");
-  const [accountType, setAccountType] = useState<"live" | "demo" | "prop">("live");
   const [timezone, setTimezone] = useState("UTC");
+  const [accountType, setAccountType] = useState<"live" | "demo" | "prop">("live");
+  const [showBalanceAlert, setShowBalanceAlert] = useState(false);
+  const [pendingBalance, setPendingBalance] = useState<string>("");
   const [startingBalance, setStartingBalance] = useState("");
-  const [currentBalanceOverride, setCurrentBalanceOverride] = useState("");
-  const [showBalanceConfirm, setShowBalanceConfirm] = useState(false);
-  const [initialized, setInitialized] = useState(false);
 
-  if (account && !initialized) {
-    setName(account.name);
+  // Populate form from loaded account
+  const populated = useRef(false);
+  if (account && !populated.current) {
+    populated.current = true;
+    setName(account.name ?? "");
     setBroker(account.broker ?? "");
-    setCurrency(account.currency);
-    setAccountType((account.accountType as "live" | "demo" | "prop") ?? "live");
+    setCurrency(account.currency ?? "USD");
     setTimezone(account.timezone ?? "UTC");
-    setStartingBalance(account.startingBalance.toString());
-    setCurrentBalanceOverride(account.currentBalance.toFixed(2));
-    setInitialized(true);
+    setAccountType(account.accountType ?? "live");
+    setStartingBalance(String(account.startingBalance ?? "10000"));
   }
 
   const handleSave = () => {
-    const sb = parseFloat(startingBalance);
-    if (isNaN(sb) || sb <= 0) {
-      toast({ title: "Invalid starting balance", variant: "destructive" });
-      return;
-    }
     updateAccount.mutate({
       data: {
-        name,
-        broker: broker || null,
+        name: name || undefined,
+        broker: broker || undefined,
         currency,
-        accountType,
         timezone,
-        startingBalance: sb,
+        accountType,
       },
     });
   };
 
-  const handleBalanceOverride = () => {
-    const cb = parseFloat(currentBalanceOverride);
-    if (isNaN(cb) || cb < 0) {
-      toast({ title: "Invalid balance amount", variant: "destructive" });
+  const handleBalanceChange = () => {
+    const val = parseFloat(pendingBalance);
+    if (isNaN(val) || val <= 0) {
+      toast({ title: "Invalid balance", description: "Please enter a positive number.", variant: "destructive" });
       return;
     }
-    updateAccount.mutate({ data: { currentBalance: cb } });
-    setShowBalanceConfirm(false);
+    updateAccount.mutate(
+      { data: { startingBalance: val } },
+      {
+        onSuccess: () => {
+          setStartingBalance(String(val));
+          setPendingBalance("");
+        },
+      },
+    );
+    setShowBalanceAlert(false);
   };
 
   if (isLoading) {
     return (
       <div className="space-y-4">
-        {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-12 w-full" />)}
+        {[1, 2, 3].map((i) => (
+          <Card key={i}>
+            <CardContent className="pt-6">
+              <Skeleton className="h-20 w-full" />
+            </CardContent>
+          </Card>
+        ))}
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Account Info</CardTitle>
-          <CardDescription>Your primary trading account details</CardDescription>
+          <CardTitle className="text-base">Account Details</CardTitle>
+          <CardDescription>Your trading account information</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Account Name</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Primary Account" />
+              <Label htmlFor="name">Account Name</Label>
+              <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="My Trading Account" />
             </div>
             <div className="space-y-2">
-              <Label>Broker</Label>
-              <Input value={broker} onChange={(e) => setBroker(e.target.value)} placeholder="e.g. IC Markets, Deriv" />
+              <Label htmlFor="broker">Broker</Label>
+              <Input id="broker" value={broker} onChange={(e) => setBroker(e.target.value)} placeholder="e.g. Deriv, FTMO, Prop firm" />
             </div>
             <div className="space-y-2">
               <Label>Account Type</Label>
               <Select value={accountType} onValueChange={(v) => setAccountType(v as "live" | "demo" | "prop")}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="live">Live</SelectItem>
                   <SelectItem value="demo">Demo</SelectItem>
@@ -183,7 +198,9 @@ function AccountTab() {
             <div className="space-y-2">
               <Label>Currency</Label>
               <Select value={currency} onValueChange={setCurrency}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   {CURRENCIES.map((c) => (
                     <SelectItem key={c} value={c}>{c}</SelectItem>
@@ -191,10 +208,12 @@ function AccountTab() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2 sm:col-span-2">
+            <div className="space-y-2">
               <Label>Timezone</Label>
               <Select value={timezone} onValueChange={setTimezone}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   {TIMEZONES.map((tz) => (
                     <SelectItem key={tz} value={tz}>{tz}</SelectItem>
@@ -205,91 +224,72 @@ function AccountTab() {
           </div>
           <Button onClick={handleSave} disabled={updateAccount.isPending} className="w-full sm:w-auto">
             {updateAccount.isPending ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-            Save Account Info
+            Save Account Details
           </Button>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Balance Settings</CardTitle>
+          <CardTitle className="text-base">Starting Balance</CardTitle>
           <CardDescription>
-            Current Balance = Starting Balance + Total Closed P&amp;L. Edit starting balance here — current balance recalculates automatically.
+            Changing this will recalculate your current balance from scratch.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Starting Balance ({currency})</Label>
-              <Input
-                type="number"
-                value={startingBalance}
-                onChange={(e) => setStartingBalance(e.target.value)}
-                placeholder="10000"
-                min={0}
-                step={0.01}
-              />
-              <p className="text-xs text-muted-foreground">Base amount before any trades</p>
+              <Label>Current Starting Balance</Label>
+              <div className="flex h-10 items-center rounded-md border border-border bg-muted/30 px-3 text-sm font-medium">
+                {formatCurrency(parseFloat(startingBalance) || 0, currency)}
+              </div>
             </div>
             <div className="space-y-2">
-              <Label>Current Balance ({currency})</Label>
-              <div className="flex gap-2">
-                <Input
-                  type="number"
-                  value={currentBalanceOverride}
-                  onChange={(e) => setCurrentBalanceOverride(e.target.value)}
-                  min={0}
-                  step={0.01}
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowBalanceConfirm(true)}
-                  className="shrink-0"
-                >
-                  Override
-                </Button>
+              <Label>Current Balance</Label>
+              <div className="flex h-10 items-center rounded-md border border-border bg-muted/30 px-3 text-sm font-medium">
+                {formatCurrency(parseFloat(String(account?.currentBalance ?? "0")), currency)}
               </div>
-              <p className="text-xs text-muted-foreground">Auto-calculated from trades • manually override with caution</p>
             </div>
           </div>
-
-          <div className="bg-muted/30 rounded-lg p-4 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium">Calculated Current Balance</p>
-              <p className="text-2xl font-bold font-mono text-primary">
-                {account ? formatCurrency(account.currentBalance, currency) : "—"}
-              </p>
+          <div className="flex items-end gap-3">
+            <div className="flex-1 space-y-2">
+              <Label htmlFor="newBalance">New Starting Balance</Label>
+              <Input
+                id="newBalance"
+                type="number"
+                min="0"
+                step="100"
+                value={pendingBalance}
+                onChange={(e) => setPendingBalance(e.target.value)}
+                placeholder="Enter new starting balance..."
+              />
             </div>
-            <div className="text-right">
-              <p className="text-sm text-muted-foreground">Starting Balance</p>
-              <p className="text-lg font-mono">
-                {account ? formatCurrency(account.startingBalance, currency) : "—"}
-              </p>
-            </div>
+            <Button
+              variant="outline"
+              onClick={() => { if (pendingBalance) setShowBalanceAlert(true); }}
+              disabled={!pendingBalance || updateAccount.isPending}
+              className="border-orange-500/30 text-orange-400 hover:bg-orange-500/10"
+            >
+              <AlertTriangle className="w-4 h-4 mr-2" />
+              Update Balance
+            </Button>
           </div>
-
-          <Button onClick={handleSave} disabled={updateAccount.isPending} className="w-full sm:w-auto">
-            {updateAccount.isPending ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-            Save Balance Settings
-          </Button>
         </CardContent>
       </Card>
 
-      <AlertDialog open={showBalanceConfirm} onOpenChange={setShowBalanceConfirm}>
+      <AlertDialog open={showBalanceAlert} onOpenChange={setShowBalanceAlert}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Override Current Balance?</AlertDialogTitle>
+            <AlertDialogTitle>Update Starting Balance?</AlertDialogTitle>
             <AlertDialogDescription>
-              This manually sets your current balance to{" "}
-              <strong>{formatCurrency(parseFloat(currentBalanceOverride) || 0, currency)}</strong>.
-              It won't change your trade records and will be overwritten next time a trade is saved.
-              Use this only to correct an initial discrepancy.
+              This will set your starting balance to{" "}
+              <strong>{formatCurrency(parseFloat(pendingBalance) || 0, currency)}</strong> and
+              recalculate your current balance based on all your trade P&L. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleBalanceOverride}>Confirm Override</AlertDialogAction>
+            <AlertDialogAction onClick={handleBalanceChange}>Confirm Update</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -299,7 +299,7 @@ function AccountTab() {
 
 function DefaultsTab() {
   const { toast } = useToast();
-  const { data: account, isLoading } = useGetAccount();
+  const { data: account } = useGetAccount();
   const updateAccount = useUpdateAccount({
     mutation: {
       onSuccess: () => {
@@ -312,73 +312,62 @@ function DefaultsTab() {
     },
   });
 
-  const [defaultRisk, setDefaultRisk] = useState("");
-  const [defaultLot, setDefaultLot] = useState("");
-  const [initialized, setInitialized] = useState(false);
+  const [defaultRiskPercent, setDefaultRiskPercent] = useState("");
+  const [defaultLotSize, setDefaultLotSize] = useState("");
 
-  if (account && !initialized) {
-    setDefaultRisk(account.defaultRiskPercent?.toString() ?? "");
-    setDefaultLot(account.defaultLotSize?.toString() ?? "");
-    setInitialized(true);
+  const populated = useRef(false);
+  if (account && !populated.current) {
+    populated.current = true;
+    setDefaultRiskPercent(String(account.defaultRiskPercent ?? "1"));
+    setDefaultLotSize(String(account.defaultLotSize ?? "0.01"));
   }
 
   const handleSave = () => {
     updateAccount.mutate({
       data: {
-        defaultRiskPercent: defaultRisk ? parseFloat(defaultRisk) : null,
-        defaultLotSize: defaultLot ? parseFloat(defaultLot) : null,
+        defaultRiskPercent: parseFloat(defaultRiskPercent) || undefined,
+        defaultLotSize: parseFloat(defaultLotSize) || undefined,
       },
     });
   };
-
-  if (isLoading) {
-    return <div className="space-y-4">{[1, 2].map((i) => <Skeleton key={i} className="h-12 w-full" />)}</div>;
-  }
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-base">Trading Defaults</CardTitle>
-        <CardDescription>Pre-fill values when logging new trades</CardDescription>
+        <CardDescription>Default values pre-filled when logging a new trade</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label>Default Risk % per Trade</Label>
-            <div className="relative">
-              <Input
-                type="number"
-                value={defaultRisk}
-                onChange={(e) => setDefaultRisk(e.target.value)}
-                placeholder="1.0"
-                min={0}
-                max={100}
-                step={0.1}
-                className="pr-8"
-              />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">%</span>
-            </div>
-            <p className="text-xs text-muted-foreground">Recommended: 1–2% per trade</p>
+            <Label htmlFor="riskPercent">Default Risk % per Trade</Label>
+            <Input
+              id="riskPercent"
+              type="number"
+              min="0.1"
+              max="10"
+              step="0.1"
+              value={defaultRiskPercent}
+              onChange={(e) => setDefaultRiskPercent(e.target.value)}
+              placeholder="1.0"
+            />
           </div>
           <div className="space-y-2">
-            <Label>Default Lot Size</Label>
+            <Label htmlFor="lotSize">Default Lot Size</Label>
             <Input
+              id="lotSize"
               type="number"
-              value={defaultLot}
-              onChange={(e) => setDefaultLot(e.target.value)}
-              placeholder="0.10"
-              min={0}
-              step={0.01}
+              min="0.01"
+              step="0.01"
+              value={defaultLotSize}
+              onChange={(e) => setDefaultLotSize(e.target.value)}
+              placeholder="0.01"
             />
-            <p className="text-xs text-muted-foreground">Standard lots (0.01 = 1 micro lot)</p>
           </div>
         </div>
 
         <div className="bg-muted/20 rounded-lg p-4 space-y-2">
-          <p className="text-sm font-medium flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-yellow-500" />
-            Risk Discipline Reminders
-          </p>
+          <p className="text-sm font-medium text-muted-foreground">Risk Discipline Reminders</p>
           <ul className="text-xs text-muted-foreground space-y-1 ml-6 list-disc">
             <li>Risk only 1–2% of your account per trade</li>
             <li>Never risk more than 5% in a single day</li>
@@ -396,9 +385,129 @@ function DefaultsTab() {
   );
 }
 
+// ---------------------------------------------------------------------------
+// PDF generation helpers (print-to-PDF via new window)
+// ---------------------------------------------------------------------------
+
+function printHtmlInNewWindow(html: string) {
+  const win = window.open("", "_blank");
+  if (!win) return false;
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(() => win.print(), 500);
+  return true;
+}
+
+const PDF_STYLE = `
+  body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 24px; color: #111; }
+  h1 { color: #1a56db; font-size: 22px; margin-bottom: 4px; }
+  .meta { color: #666; font-size: 12px; margin-bottom: 24px; }
+  .entry { margin-bottom: 28px; border-bottom: 1px solid #e5e7eb; padding-bottom: 24px; }
+  .entry:last-child { border-bottom: none; }
+  .entry h3 { font-size: 16px; margin: 0 0 8px; }
+  .ratings { display: flex; flex-wrap: wrap; gap: 12px; margin: 8px 0; color: #555; font-size: 13px; }
+  .field { margin-top: 10px; }
+  .field strong { display: block; color: #333; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 3px; }
+  .field p { font-size: 14px; margin: 0; white-space: pre-wrap; }
+  @media print { .entry { page-break-inside: avoid; } }
+`;
+
+function generateJournalPDF(journals: Array<Record<string, unknown>>): string {
+  if (journals.length === 0) return "";
+  const entries = journals
+    .map((j) => {
+      const ratings = [
+        j.mood != null && `Mood: ${j.mood}/10`,
+        j.confidence != null && `Confidence: ${j.confidence}/10`,
+        j.discipline != null && `Discipline: ${j.discipline}/10`,
+        j.focus != null && `Focus: ${j.focus}/10`,
+        j.fear != null && `Fear: ${j.fear}/10`,
+        j.greed != null && `Greed: ${j.greed}/10`,
+        j.sleep != null && `Sleep: ${j.sleep}/10`,
+      ]
+        .filter(Boolean)
+        .join("  |  ");
+
+      const fields = [
+        j.tradingPlan && `<div class="field"><strong>Trading Plan</strong><p>${j.tradingPlan}</p></div>`,
+        j.notes && `<div class="field"><strong>Session Notes</strong><p>${j.notes}</p></div>`,
+        j.mistakes && `<div class="field"><strong>Mistakes</strong><p>${j.mistakes}</p></div>`,
+        j.lessons && `<div class="field"><strong>Lessons</strong><p>${j.lessons}</p></div>`,
+        j.tomorrowGoal && `<div class="field"><strong>Tomorrow's Goal</strong><p>${j.tomorrowGoal}</p></div>`,
+      ]
+        .filter(Boolean)
+        .join("");
+
+      return `
+        <div class="entry">
+          <h3>${j.date}${j.isDraft ? " (Draft)" : ""}</h3>
+          ${ratings ? `<div class="ratings">${ratings}</div>` : ""}
+          ${fields}
+        </div>`;
+    })
+    .join("");
+
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>OPE-FX Journal</title><style>${PDF_STYLE}</style></head><body>
+    <h1>OPE-FX Trading Journal</h1>
+    <p class="meta">Exported ${new Date().toLocaleDateString()} — ${journals.length} entries</p>
+    ${entries}
+  </body></html>`;
+}
+
+function generateReviewsPDF(reviews: Array<Record<string, unknown>>): string {
+  if (reviews.length === 0) return "";
+  const entries = reviews
+    .map((r) => {
+      const fields = [
+        r.content && `<div class="field"><strong>Overview</strong><p>${r.content}</p></div>`,
+        r.strengths && `<div class="field"><strong>Strengths</strong><p>${r.strengths}</p></div>`,
+        r.mistakes && `<div class="field"><strong>Mistakes</strong><p>${r.mistakes}</p></div>`,
+        r.lessons && `<div class="field"><strong>Lessons Learned</strong><p>${r.lessons}</p></div>`,
+        r.actionPlan && `<div class="field"><strong>Action Plan</strong><p>${r.actionPlan}</p></div>`,
+      ]
+        .filter(Boolean)
+        .join("");
+
+      const dateLine = r.startDate && r.endDate ? ` (${r.startDate} → ${r.endDate})` : "";
+      return `
+        <div class="entry">
+          <h3>${r.title}${dateLine}</h3>
+          <div class="ratings">${String(r.period ?? "").toUpperCase()}${r.rating ? `  |  Rating: ${r.rating}/10` : ""}</div>
+          ${fields}
+        </div>`;
+    })
+    .join("");
+
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>OPE-FX Reviews</title><style>${PDF_STYLE}</style></head><body>
+    <h1>OPE-FX Performance Reviews</h1>
+    <p class="meta">Exported ${new Date().toLocaleDateString()} — ${reviews.length} reviews</p>
+    ${entries}
+  </body></html>`;
+}
+
+// ---------------------------------------------------------------------------
+// Export & Backup Tab
+// ---------------------------------------------------------------------------
+
 function ExportTab() {
   const { toast } = useToast();
   const { data: tradesData } = useListTrades({ status: "closed" });
+  const [loadingBackup, setLoadingBackup] = useState(false);
+  const [loadingJournalPDF, setLoadingJournalPDF] = useState(false);
+  const [loadingReviewsPDF, setLoadingReviewsPDF] = useState(false);
+  const [restoring, setRestoring] = useState(false);
+  const importRef = useRef<HTMLInputElement>(null);
+
+  // ---- Helpers ----
+
+  async function fetchBackupData(): Promise<Record<string, unknown> | null> {
+    const res = await fetch("/api/backup");
+    if (!res.ok) throw new Error(`Server error: ${res.status}`);
+    return res.json();
+  }
+
+  // ---- Export handlers ----
 
   const exportTradesToCSV = () => {
     const items = tradesData?.items ?? [];
@@ -406,13 +515,11 @@ function ExportTab() {
       toast({ title: "No closed trades to export" });
       return;
     }
-
     const headers = [
       "ID", "Symbol", "Market", "Direction", "Status", "Entry Price", "Exit Price",
       "Stop Loss", "Take Profit", "Lot Size", "Risk %", "Risk Amount", "P&L",
       "Pips", "R:R", "Outcome", "Timeframe", "Strategy", "Notes", "Opened At", "Closed At",
     ];
-
     const rows = items.map((t: Trade) => [
       t.id, t.symbol, t.market, t.direction, t.status,
       t.entryPrice, t.exitPrice ?? "", t.stopLoss ?? "", t.takeProfit ?? "",
@@ -422,7 +529,6 @@ function ExportTab() {
       `"${(t.notes ?? "").replace(/"/g, '""')}"`,
       t.openedAt, t.closedAt ?? "",
     ]);
-
     const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -431,29 +537,216 @@ function ExportTab() {
     a.download = `ope-fx-trades-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    toast({ title: `Exported ${items.length} trades to CSV` });
+    toast({ title: `Exported ${items.length} closed trades to CSV` });
+  };
+
+  const downloadFullBackup = async () => {
+    setLoadingBackup(true);
+    try {
+      const data = await fetchBackupData();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `ope-fx-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: "Full backup downloaded successfully" });
+    } catch (err) {
+      toast({ title: "Backup failed", description: (err as Error).message, variant: "destructive" });
+    } finally {
+      setLoadingBackup(false);
+    }
+  };
+
+  const exportJournalPDF = async () => {
+    setLoadingJournalPDF(true);
+    try {
+      const data = await fetchBackupData();
+      const journals = (data?.journals ?? []) as Array<Record<string, unknown>>;
+      if (journals.length === 0) {
+        toast({ title: "No journal entries found" });
+        return;
+      }
+      const html = generateJournalPDF(journals);
+      if (!printHtmlInNewWindow(html)) {
+        toast({ title: "Pop-up blocked", description: "Please allow pop-ups for this site and try again.", variant: "destructive" });
+        return;
+      }
+      toast({ title: `Journal export ready (${journals.length} entries) — use Print → Save as PDF` });
+    } catch (err) {
+      toast({ title: "Export failed", description: (err as Error).message, variant: "destructive" });
+    } finally {
+      setLoadingJournalPDF(false);
+    }
+  };
+
+  const exportReviewsPDF = async () => {
+    setLoadingReviewsPDF(true);
+    try {
+      const data = await fetchBackupData();
+      const reviews = (data?.reviews ?? []) as Array<Record<string, unknown>>;
+      if (reviews.length === 0) {
+        toast({ title: "No reviews found" });
+        return;
+      }
+      const html = generateReviewsPDF(reviews);
+      if (!printHtmlInNewWindow(html)) {
+        toast({ title: "Pop-up blocked", description: "Please allow pop-ups for this site and try again.", variant: "destructive" });
+        return;
+      }
+      toast({ title: `Reviews export ready (${reviews.length} reviews) — use Print → Save as PDF` });
+    } catch (err) {
+      toast({ title: "Export failed", description: (err as Error).message, variant: "destructive" });
+    } finally {
+      setLoadingReviewsPDF(false);
+    }
+  };
+
+  // ---- Import handler ----
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+
+    try {
+      const text = await file.text();
+      let data: Record<string, unknown>;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        toast({ title: "Invalid file", description: "The selected file is not valid JSON.", variant: "destructive" });
+        return;
+      }
+
+      if (!data.version) {
+        toast({ title: "Invalid backup file", description: "This doesn't appear to be a valid OPE-FX backup.", variant: "destructive" });
+        return;
+      }
+
+      setRestoring(true);
+      const res = await fetch("/api/restore", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Restore failed" }));
+        throw new Error(err.error ?? "Restore failed");
+      }
+
+      const result = await res.json() as { imported: { trades: number; journals: number; reviews: number; rules: number } };
+      const { imported } = result;
+
+      // Invalidate all queries so UI reflects restored data
+      queryClient.invalidateQueries();
+
+      toast({
+        title: "Backup restored successfully",
+        description: `Imported: ${imported.trades} trades, ${imported.journals} journal entries, ${imported.reviews} reviews, ${imported.rules} rules`,
+      });
+    } catch (err) {
+      toast({ title: "Import failed", description: (err as Error).message, variant: "destructive" });
+    } finally {
+      setRestoring(false);
+    }
   };
 
   return (
     <div className="space-y-4">
+      {/* Export section */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Export Data</CardTitle>
-          <CardDescription>Download your trading data for analysis in other tools</CardDescription>
+          <CardTitle className="text-base flex items-center gap-2">
+            <FileDown className="w-4 h-4" />
+            Export Data
+          </CardTitle>
+          <CardDescription>Download your trading data in various formats</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex flex-col sm:flex-row gap-3">
-            <Button variant="outline" onClick={exportTradesToCSV} className="gap-2">
-              <Download className="w-4 h-4" />
-              Export Trades (CSV)
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Button variant="outline" onClick={exportTradesToCSV} className="gap-2 justify-start">
+              <FileText className="w-4 h-4 text-green-500" />
+              <div className="text-left">
+                <div className="text-sm font-medium">Trade Log (CSV)</div>
+                <div className="text-xs text-muted-foreground">All closed trades</div>
+              </div>
+            </Button>
+
+            <Button variant="outline" onClick={exportJournalPDF} disabled={loadingJournalPDF} className="gap-2 justify-start">
+              {loadingJournalPDF ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4 text-blue-500" />}
+              <div className="text-left">
+                <div className="text-sm font-medium">Journal (PDF)</div>
+                <div className="text-xs text-muted-foreground">All journal entries</div>
+              </div>
+            </Button>
+
+            <Button variant="outline" onClick={exportReviewsPDF} disabled={loadingReviewsPDF} className="gap-2 justify-start">
+              {loadingReviewsPDF ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4 text-purple-500" />}
+              <div className="text-left">
+                <div className="text-sm font-medium">Reviews (PDF)</div>
+                <div className="text-xs text-muted-foreground">All performance reviews</div>
+              </div>
+            </Button>
+
+            <Button variant="outline" onClick={downloadFullBackup} disabled={loadingBackup} className="gap-2 justify-start">
+              {loadingBackup ? <Loader2 className="w-4 h-4 animate-spin" /> : <Archive className="w-4 h-4 text-orange-500" />}
+              <div className="text-left">
+                <div className="text-sm font-medium">Full Backup (JSON)</div>
+                <div className="text-xs text-muted-foreground">All trades, journals, reviews, rules</div>
+              </div>
             </Button>
           </div>
           <p className="text-xs text-muted-foreground">
-            CSV exports all closed trades with full field details. Open in Excel, Google Sheets, or any spreadsheet app.
+            CSV opens in Excel or Google Sheets. PDF exports open your browser's print dialog — choose "Save as PDF". JSON backup can be imported below.
           </p>
         </CardContent>
       </Card>
 
+      {/* Import section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Upload className="w-4 h-4" />
+            Import Backup
+          </CardTitle>
+          <CardDescription>
+            Restore data from a previously exported OPE-FX backup file (.json)
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg p-3 flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 text-orange-400 shrink-0 mt-0.5" />
+            <p className="text-xs text-orange-300">
+              Import adds data to your existing account (it does not overwrite). Journal entries for dates that already exist will be skipped.
+            </p>
+          </div>
+
+          <input
+            ref={importRef}
+            type="file"
+            accept=".json"
+            className="hidden"
+            onChange={handleImportFile}
+          />
+
+          <Button
+            onClick={() => importRef.current?.click()}
+            disabled={restoring}
+            className="gap-2 w-full sm:w-auto"
+          >
+            {restoring ? (
+              <><Loader2 className="w-4 h-4 animate-spin" /> Importing…</>
+            ) : (
+              <><Upload className="w-4 h-4" /> Select Backup File</>
+            )}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Data & Privacy */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Data &amp; Privacy</CardTitle>

@@ -70,7 +70,7 @@ router.get(
         id: r.id,
         text: r.title,
         category: r.category,
-        isChecked: r.isChecked,
+        isChecked: r.completed,
       }));
 
       // --- Recent performance stats (last 20 closed trades) ---

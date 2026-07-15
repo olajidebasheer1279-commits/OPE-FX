@@ -20,6 +20,7 @@ import Assistant from "@/pages/Assistant";
 import Settings from "@/pages/Settings";
 import Placeholder from "@/pages/Placeholder";
 import AppLayout from "@/components/layout/AppLayout";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const clerkPubKey = publishableKeyFromHost(
   window.location.hostname,
@@ -225,9 +226,11 @@ function App() {
   }, []);
 
   return (
-    <WouterRouter base={basePath}>
-      <ClerkProviderWithRoutes />
-    </WouterRouter>
+    <ErrorBoundary>
+      <WouterRouter base={basePath}>
+        <ClerkProviderWithRoutes />
+      </WouterRouter>
+    </ErrorBoundary>
   );
 }
 

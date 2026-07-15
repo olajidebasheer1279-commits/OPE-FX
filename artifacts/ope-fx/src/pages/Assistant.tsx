@@ -141,7 +141,7 @@ function ChecklistSection({ items }: { items: Array<{ id: number; text: string; 
 }
 
 export default function Assistant() {
-  const { data, isLoading, refetch, isFetching } = useGetAssistantSummary();
+  const { data, isLoading, isError, refetch, isFetching } = useGetAssistantSummary();
 
   if (isLoading) {
     return (
@@ -155,6 +155,22 @@ export default function Assistant() {
         </div>
         <Skeleton className="h-64" />
         <Skeleton className="h-48" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-4 min-h-[400px]">
+        <AlertTriangle className="w-12 h-12 text-destructive/60" />
+        <div className="space-y-1">
+          <p className="text-lg font-semibold">Unable to load Trading Assistant</p>
+          <p className="text-sm text-muted-foreground">Check your connection and try again.</p>
+        </div>
+        <Button variant="outline" onClick={() => refetch()} className="gap-2">
+          <RefreshCw className="w-4 h-4" />
+          Retry
+        </Button>
       </div>
     );
   }
