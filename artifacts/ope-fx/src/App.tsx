@@ -14,6 +14,8 @@ import TradeLog from "@/pages/TradeLog";
 import TradeDetails from "@/pages/TradeDetails";
 import Journal from "@/pages/Journal";
 import Rules from "@/pages/Rules";
+import Reviews from "@/pages/Reviews";
+import Analytics from "@/pages/Analytics";
 import Placeholder from "@/pages/Placeholder";
 import AppLayout from "@/components/layout/AppLayout";
 
@@ -191,9 +193,9 @@ function ClerkProviderWithRoutes() {
             <Route path="/trades/new" component={() => <ProtectedRoute component={TradeLog} />} />
             <Route path="/trades/:id" component={() => <ProtectedRoute component={TradeDetails} />} />
             <Route path="/journal" component={() => <ProtectedRoute component={Journal} />} />
-            <Route path="/reviews" component={() => <ProtectedRoute component={Placeholder} title="Reviews" description="Weekly and monthly performance breakdowns." />} />
+            <Route path="/reviews" component={() => <ProtectedRoute component={Reviews} />} />
             <Route path="/rules" component={() => <ProtectedRoute component={Rules} />} />
-            <Route path="/analytics" component={() => <ProtectedRoute component={Placeholder} title="Analytics" description="Advanced metrics and statistical edge analysis." />} />
+            <Route path="/analytics" component={() => <ProtectedRoute component={Analytics} />} />
             <Route path="/assistant" component={() => <ProtectedRoute component={Placeholder} title="Trading Assistant" description="AI-powered insights based on your trade history." />} />
             <Route path="/settings" component={() => <ProtectedRoute component={Placeholder} title="Settings" description="Configure your command center and integrations." />} />
             <Route path="/help" component={() => <ProtectedRoute component={Placeholder} title="Help" description="Documentation and support resources." />} />

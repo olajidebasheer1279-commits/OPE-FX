@@ -324,6 +324,220 @@ export interface RuleUpdate {
   sortOrder?: number;
 }
 
+export type ReviewPeriod = typeof ReviewPeriod[keyof typeof ReviewPeriod];
+
+
+export const ReviewPeriod = {
+  daily: 'daily',
+  weekly: 'weekly',
+  monthly: 'monthly',
+} as const;
+
+export interface Review {
+  id: number;
+  period: ReviewPeriod;
+  title: string;
+  content: string;
+  /** @nullable */
+  rating: number | null;
+  /** @nullable */
+  startDate: string | null;
+  /** @nullable */
+  endDate: string | null;
+  /** @nullable */
+  strengths: string | null;
+  /** @nullable */
+  mistakes: string | null;
+  /** @nullable */
+  lessons: string | null;
+  /** @nullable */
+  actionPlan: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ReviewInputPeriod = typeof ReviewInputPeriod[keyof typeof ReviewInputPeriod];
+
+
+export const ReviewInputPeriod = {
+  daily: 'daily',
+  weekly: 'weekly',
+  monthly: 'monthly',
+} as const;
+
+export interface ReviewInput {
+  period: ReviewInputPeriod;
+  /** @minLength 1 */
+  title: string;
+  content?: string;
+  /**
+     * @minimum 1
+     * @maximum 10
+     */
+  rating?: number;
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
+  startDate?: string;
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
+  endDate?: string;
+  strengths?: string;
+  mistakes?: string;
+  lessons?: string;
+  actionPlan?: string;
+}
+
+export type ReviewUpdatePeriod = typeof ReviewUpdatePeriod[keyof typeof ReviewUpdatePeriod];
+
+
+export const ReviewUpdatePeriod = {
+  daily: 'daily',
+  weekly: 'weekly',
+  monthly: 'monthly',
+} as const;
+
+export interface ReviewUpdate {
+  period?: ReviewUpdatePeriod;
+  /** @minLength 1 */
+  title?: string;
+  content?: string;
+  /**
+     * @minimum 1
+     * @maximum 10
+     * @nullable
+     */
+  rating?: number | null;
+  /** @nullable */
+  startDate?: string | null;
+  /** @nullable */
+  endDate?: string | null;
+  /** @nullable */
+  strengths?: string | null;
+  /** @nullable */
+  mistakes?: string | null;
+  /** @nullable */
+  lessons?: string | null;
+  /** @nullable */
+  actionPlan?: string | null;
+}
+
+export type ReviewListResponse = Review[];
+
+export interface PairPerformanceStat {
+  symbol: string;
+  trades: number;
+  winRate: number;
+  totalPnl: number;
+  avgPnl: number;
+}
+
+export interface DirectionStat {
+  trades: number;
+  winRate: number;
+  totalPnl: number;
+}
+
+export interface TimeframeStat {
+  timeframe: string;
+  trades: number;
+  winRate: number;
+  totalPnl: number;
+}
+
+export interface DayOfWeekStat {
+  dayOfWeek: string;
+  dayIndex: number;
+  trades: number;
+  winRate: number;
+  totalPnl: number;
+}
+
+export type StreakInfoType = typeof StreakInfoType[keyof typeof StreakInfoType];
+
+
+export const StreakInfoType = {
+  win: 'win',
+  loss: 'loss',
+  none: 'none',
+} as const;
+
+export interface StreakInfo {
+  type: StreakInfoType;
+  count: number;
+}
+
+export interface EquityGrowthPoint {
+  date: string;
+  balance: number;
+  pnl: number;
+}
+
+export interface MonthlyPnlStat {
+  month: string;
+  pnl: number;
+  trades: number;
+  winRate: number;
+}
+
+export interface RiskBucket {
+  riskPercent: string;
+  count: number;
+}
+
+export interface DirectionBreakdown {
+  long: DirectionStat;
+  short: DirectionStat;
+}
+
+export interface AnalyticsSummary {
+  totalTrades: number;
+  closedTrades: number;
+  pairPerformance: PairPerformanceStat[];
+  directionBreakdown: DirectionBreakdown;
+  timeframeBreakdown: TimeframeStat[];
+  dayOfWeekBreakdown: DayOfWeekStat[];
+  /** @nullable */
+  avgHoldingTimeMinutes: number | null;
+  currentStreak: StreakInfo;
+  longestWinStreak: number;
+  longestLossStreak: number;
+  equityGrowth: EquityGrowthPoint[];
+  monthlyPnl: MonthlyPnlStat[];
+  riskDistribution: RiskBucket[];
+  /** @nullable */
+  dateFrom: string | null;
+  /** @nullable */
+  dateTo: string | null;
+}
+
+export interface OprScoreComponent {
+  score: number;
+  weight: number;
+  /** @nullable */
+  value: number | null;
+  label: string;
+}
+
+export interface OprBreakdown {
+  winRate: OprScoreComponent;
+  riskReward: OprScoreComponent;
+  ruleCompliance: OprScoreComponent;
+  journalCompletion: OprScoreComponent;
+  riskManagement: OprScoreComponent;
+  discipline: OprScoreComponent;
+}
+
+export interface OprScore {
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  score: number;
+  grade: string;
+  period: string;
+  tradesAnalyzed: number;
+  breakdown: OprBreakdown;
+  suggestions: string[];
+}
+
 export interface UploadUrlRequest {
   /**
      * Original file name.
@@ -428,5 +642,40 @@ month?: string;
 export type ListRulesParams = {
 search?: string;
 category?: string;
+};
+
+export type ListReviewsParams = {
+period?: ListReviewsPeriod;
+/**
+ * Filter reviews whose startDate >= dateFrom (YYYY-MM-DD)
+ * @pattern ^\d{4}-\d{2}-\d{2}$
+ */
+dateFrom?: string;
+/**
+ * Filter reviews whose startDate <= dateTo (YYYY-MM-DD)
+ * @pattern ^\d{4}-\d{2}-\d{2}$
+ */
+dateTo?: string;
+};
+
+export type ListReviewsPeriod = typeof ListReviewsPeriod[keyof typeof ListReviewsPeriod];
+
+
+export const ListReviewsPeriod = {
+  daily: 'daily',
+  weekly: 'weekly',
+  monthly: 'monthly',
+} as const;
+
+export type GetAnalyticsSummaryParams = {
+dateFrom?: string;
+dateTo?: string;
+};
+
+export type GetOprScoreParams = {
+/**
+ * YYYY-MM for a specific month, or 'all-time'. Defaults to current month.
+ */
+period?: string;
 };
 

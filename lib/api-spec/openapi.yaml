@@ -18,6 +18,10 @@ tags:
     description: Daily journal operations
   - name: rules
     description: Trading rules checklist operations
+  - name: reviews
+    description: Performance review operations
+  - name: analytics
+    description: Advanced analytics and OPE Performance Rating
   - name: Storage
     description: Object storage upload and serving endpoints.
 paths:
@@ -405,6 +409,184 @@ paths:
           description: Deleted
         "404":
           description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /reviews:
+    get:
+      operationId: listReviews
+      tags: [reviews]
+      summary: List performance reviews
+      parameters:
+        - name: period
+          in: query
+          schema: { type: string, enum: [daily, weekly, monthly] }
+        - name: dateFrom
+          in: query
+          schema: { type: string, pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+          description: Filter reviews whose startDate >= dateFrom (YYYY-MM-DD)
+        - name: dateTo
+          in: query
+          schema: { type: string, pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+          description: Filter reviews whose startDate <= dateTo (YYYY-MM-DD)
+      responses:
+        "200":
+          description: Reviews
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewListResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createReview
+      tags: [reviews]
+      summary: Create a performance review
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewInput"
+      responses:
+        "201":
+          description: Review created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Review"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /reviews/{id}:
+    get:
+      operationId: getReview
+      tags: [reviews]
+      summary: Get a review
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Review
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Review"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateReview
+      tags: [reviews]
+      summary: Update a review
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewUpdate"
+      responses:
+        "200":
+          description: Review updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Review"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteReview
+      tags: [reviews]
+      summary: Delete a review
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /analytics/summary:
+    get:
+      operationId: getAnalyticsSummary
+      tags: [analytics]
+      summary: Get advanced analytics summary
+      description: Returns pair performance, direction/timeframe breakdowns, streaks, equity growth, monthly PnL, and risk distribution.
+      parameters:
+        - name: dateFrom
+          in: query
+          schema: { type: string, format: date-time }
+        - name: dateTo
+          in: query
+          schema: { type: string, format: date-time }
+      responses:
+        "200":
+          description: Analytics summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyticsSummary"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /analytics/opr:
+    get:
+      operationId: getOprScore
+      tags: [analytics]
+      summary: Get OPE Performance Rating (OPR)
+      description: Returns a 0-100 score based on win rate, R:R, rule compliance, journal completion, risk management, and discipline.
+      parameters:
+        - name: period
+          in: query
+          schema: { type: string }
+          description: "YYYY-MM for a specific month, or 'all-time'. Defaults to current month."
+      responses:
+        "200":
+          description: OPR score
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OprScore"
+        "401":
+          description: Unauthorized
           content:
             application/json:
               schema:
@@ -834,6 +1016,184 @@ components:
         isActive: { type: boolean }
         completed: { type: boolean }
         sortOrder: { type: integer }
+    Review:
+      type: object
+      required: [id, period, title, content, rating, startDate, endDate, strengths, mistakes, lessons, actionPlan, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        period: { type: string, enum: [daily, weekly, monthly] }
+        title: { type: string }
+        content: { type: string }
+        rating: { type: ["integer", "null"] }
+        startDate: { type: ["string", "null"] }
+        endDate: { type: ["string", "null"] }
+        strengths: { type: ["string", "null"] }
+        mistakes: { type: ["string", "null"] }
+        lessons: { type: ["string", "null"] }
+        actionPlan: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    ReviewInput:
+      type: object
+      required: [period, title]
+      properties:
+        period: { type: string, enum: [daily, weekly, monthly] }
+        title: { type: string, minLength: 1 }
+        content: { type: string }
+        rating: { type: integer, minimum: 1, maximum: 10 }
+        startDate: { type: string, pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        endDate: { type: string, pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        strengths: { type: string }
+        mistakes: { type: string }
+        lessons: { type: string }
+        actionPlan: { type: string }
+    ReviewUpdate:
+      type: object
+      properties:
+        period: { type: string, enum: [daily, weekly, monthly] }
+        title: { type: string, minLength: 1 }
+        content: { type: string }
+        rating: { type: ["integer", "null"], minimum: 1, maximum: 10 }
+        startDate: { type: ["string", "null"] }
+        endDate: { type: ["string", "null"] }
+        strengths: { type: ["string", "null"] }
+        mistakes: { type: ["string", "null"] }
+        lessons: { type: ["string", "null"] }
+        actionPlan: { type: ["string", "null"] }
+    ReviewListResponse:
+      type: array
+      items:
+        $ref: "#/components/schemas/Review"
+    PairPerformanceStat:
+      type: object
+      required: [symbol, trades, winRate, totalPnl, avgPnl]
+      properties:
+        symbol: { type: string }
+        trades: { type: integer }
+        winRate: { type: number }
+        totalPnl: { type: number }
+        avgPnl: { type: number }
+    DirectionStat:
+      type: object
+      required: [trades, winRate, totalPnl]
+      properties:
+        trades: { type: integer }
+        winRate: { type: number }
+        totalPnl: { type: number }
+    TimeframeStat:
+      type: object
+      required: [timeframe, trades, winRate, totalPnl]
+      properties:
+        timeframe: { type: string }
+        trades: { type: integer }
+        winRate: { type: number }
+        totalPnl: { type: number }
+    DayOfWeekStat:
+      type: object
+      required: [dayOfWeek, dayIndex, trades, winRate, totalPnl]
+      properties:
+        dayOfWeek: { type: string }
+        dayIndex: { type: integer }
+        trades: { type: integer }
+        winRate: { type: number }
+        totalPnl: { type: number }
+    StreakInfo:
+      type: object
+      required: [type, count]
+      properties:
+        type: { type: string, enum: [win, loss, none] }
+        count: { type: integer }
+    EquityGrowthPoint:
+      type: object
+      required: [date, balance, pnl]
+      properties:
+        date: { type: string, format: date-time }
+        balance: { type: number }
+        pnl: { type: number }
+    MonthlyPnlStat:
+      type: object
+      required: [month, pnl, trades, winRate]
+      properties:
+        month: { type: string }
+        pnl: { type: number }
+        trades: { type: integer }
+        winRate: { type: number }
+    RiskBucket:
+      type: object
+      required: [riskPercent, count]
+      properties:
+        riskPercent: { type: string }
+        count: { type: integer }
+    DirectionBreakdown:
+      type: object
+      required: [long, short]
+      properties:
+        long:
+          $ref: "#/components/schemas/DirectionStat"
+        short:
+          $ref: "#/components/schemas/DirectionStat"
+    AnalyticsSummary:
+      type: object
+      required: [totalTrades, closedTrades, pairPerformance, directionBreakdown, timeframeBreakdown, dayOfWeekBreakdown, avgHoldingTimeMinutes, currentStreak, longestWinStreak, longestLossStreak, equityGrowth, monthlyPnl, riskDistribution, dateFrom, dateTo]
+      properties:
+        totalTrades: { type: integer }
+        closedTrades: { type: integer }
+        pairPerformance:
+          type: array
+          items: { $ref: "#/components/schemas/PairPerformanceStat" }
+        directionBreakdown:
+          $ref: "#/components/schemas/DirectionBreakdown"
+        timeframeBreakdown:
+          type: array
+          items: { $ref: "#/components/schemas/TimeframeStat" }
+        dayOfWeekBreakdown:
+          type: array
+          items: { $ref: "#/components/schemas/DayOfWeekStat" }
+        avgHoldingTimeMinutes: { type: ["number", "null"] }
+        currentStreak: { $ref: "#/components/schemas/StreakInfo" }
+        longestWinStreak: { type: integer }
+        longestLossStreak: { type: integer }
+        equityGrowth:
+          type: array
+          items: { $ref: "#/components/schemas/EquityGrowthPoint" }
+        monthlyPnl:
+          type: array
+          items: { $ref: "#/components/schemas/MonthlyPnlStat" }
+        riskDistribution:
+          type: array
+          items: { $ref: "#/components/schemas/RiskBucket" }
+        dateFrom: { type: ["string", "null"] }
+        dateTo: { type: ["string", "null"] }
+    OprScoreComponent:
+      type: object
+      required: [score, weight, value, label]
+      properties:
+        score: { type: integer }
+        weight: { type: integer }
+        value: { type: ["number", "null"] }
+        label: { type: string }
+    OprBreakdown:
+      type: object
+      required: [winRate, riskReward, ruleCompliance, journalCompletion, riskManagement, discipline]
+      properties:
+        winRate: { $ref: "#/components/schemas/OprScoreComponent" }
+        riskReward: { $ref: "#/components/schemas/OprScoreComponent" }
+        ruleCompliance: { $ref: "#/components/schemas/OprScoreComponent" }
+        journalCompletion: { $ref: "#/components/schemas/OprScoreComponent" }
+        riskManagement: { $ref: "#/components/schemas/OprScoreComponent" }
+        discipline: { $ref: "#/components/schemas/OprScoreComponent" }
+    OprScore:
+      type: object
+      required: [score, grade, period, tradesAnalyzed, breakdown, suggestions]
+      properties:
+        score: { type: integer, minimum: 0, maximum: 100 }
+        grade: { type: string }
+        period: { type: string }
+        tradesAnalyzed: { type: integer }
+        breakdown: { $ref: "#/components/schemas/OprBreakdown" }
+        suggestions:
+          type: array
+          items: { type: string }
     UploadUrlRequest:
       type: object
       required: [name, size, contentType]

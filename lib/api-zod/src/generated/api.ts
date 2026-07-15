@@ -502,6 +502,284 @@ export const DeleteRuleResponse = zod.void()
 
 
 /**
+ * @summary List performance reviews
+ */
+export const listReviewsQueryDateFromRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const listReviewsQueryDateToRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const ListReviewsQueryParams = zod.object({
+  "period": zod.enum(['daily', 'weekly', 'monthly']).optional(),
+  "dateFrom": zod.coerce.string().regex(listReviewsQueryDateFromRegExp).optional().describe('Filter reviews whose startDate >= dateFrom (YYYY-MM-DD)'),
+  "dateTo": zod.coerce.string().regex(listReviewsQueryDateToRegExp).optional().describe('Filter reviews whose startDate <= dateTo (YYYY-MM-DD)')
+})
+
+export const ListReviewsResponseItem = zod.object({
+  "id": zod.number(),
+  "period": zod.enum(['daily', 'weekly', 'monthly']),
+  "title": zod.string(),
+  "content": zod.string(),
+  "rating": zod.number().nullable(),
+  "startDate": zod.string().nullable(),
+  "endDate": zod.string().nullable(),
+  "strengths": zod.string().nullable(),
+  "mistakes": zod.string().nullable(),
+  "lessons": zod.string().nullable(),
+  "actionPlan": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListReviewsResponse = zod.array(ListReviewsResponseItem)
+
+
+/**
+ * @summary Create a performance review
+ */
+
+export const createReviewBodyRatingMax = 10;
+
+export const createReviewBodyStartDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const createReviewBodyEndDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const CreateReviewBody = zod.object({
+  "period": zod.enum(['daily', 'weekly', 'monthly']),
+  "title": zod.string().min(1),
+  "content": zod.string().optional(),
+  "rating": zod.number().min(1).max(createReviewBodyRatingMax).optional(),
+  "startDate": zod.string().regex(createReviewBodyStartDateRegExp).optional(),
+  "endDate": zod.string().regex(createReviewBodyEndDateRegExp).optional(),
+  "strengths": zod.string().optional(),
+  "mistakes": zod.string().optional(),
+  "lessons": zod.string().optional(),
+  "actionPlan": zod.string().optional()
+})
+
+export const CreateReviewResponse = zod.object({
+  "id": zod.number(),
+  "period": zod.enum(['daily', 'weekly', 'monthly']),
+  "title": zod.string(),
+  "content": zod.string(),
+  "rating": zod.number().nullable(),
+  "startDate": zod.string().nullable(),
+  "endDate": zod.string().nullable(),
+  "strengths": zod.string().nullable(),
+  "mistakes": zod.string().nullable(),
+  "lessons": zod.string().nullable(),
+  "actionPlan": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Get a review
+ */
+export const GetReviewParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetReviewResponse = zod.object({
+  "id": zod.number(),
+  "period": zod.enum(['daily', 'weekly', 'monthly']),
+  "title": zod.string(),
+  "content": zod.string(),
+  "rating": zod.number().nullable(),
+  "startDate": zod.string().nullable(),
+  "endDate": zod.string().nullable(),
+  "strengths": zod.string().nullable(),
+  "mistakes": zod.string().nullable(),
+  "lessons": zod.string().nullable(),
+  "actionPlan": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update a review
+ */
+export const UpdateReviewParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+export const updateReviewBodyRatingMax = 10;
+
+
+
+export const UpdateReviewBody = zod.object({
+  "period": zod.enum(['daily', 'weekly', 'monthly']).optional(),
+  "title": zod.string().min(1).optional(),
+  "content": zod.string().optional(),
+  "rating": zod.number().min(1).max(updateReviewBodyRatingMax).nullish(),
+  "startDate": zod.string().nullish(),
+  "endDate": zod.string().nullish(),
+  "strengths": zod.string().nullish(),
+  "mistakes": zod.string().nullish(),
+  "lessons": zod.string().nullish(),
+  "actionPlan": zod.string().nullish()
+})
+
+export const UpdateReviewResponse = zod.object({
+  "id": zod.number(),
+  "period": zod.enum(['daily', 'weekly', 'monthly']),
+  "title": zod.string(),
+  "content": zod.string(),
+  "rating": zod.number().nullable(),
+  "startDate": zod.string().nullable(),
+  "endDate": zod.string().nullable(),
+  "strengths": zod.string().nullable(),
+  "mistakes": zod.string().nullable(),
+  "lessons": zod.string().nullable(),
+  "actionPlan": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a review
+ */
+export const DeleteReviewParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteReviewResponse = zod.void()
+
+
+/**
+ * Returns pair performance, direction/timeframe breakdowns, streaks, equity growth, monthly PnL, and risk distribution.
+ * @summary Get advanced analytics summary
+ */
+export const GetAnalyticsSummaryQueryParams = zod.object({
+  "dateFrom": zod.date().optional(),
+  "dateTo": zod.date().optional()
+})
+
+export const GetAnalyticsSummaryResponse = zod.object({
+  "totalTrades": zod.number(),
+  "closedTrades": zod.number(),
+  "pairPerformance": zod.array(zod.object({
+  "symbol": zod.string(),
+  "trades": zod.number(),
+  "winRate": zod.number(),
+  "totalPnl": zod.number(),
+  "avgPnl": zod.number()
+})),
+  "directionBreakdown": zod.object({
+  "long": zod.object({
+  "trades": zod.number(),
+  "winRate": zod.number(),
+  "totalPnl": zod.number()
+}),
+  "short": zod.object({
+  "trades": zod.number(),
+  "winRate": zod.number(),
+  "totalPnl": zod.number()
+})
+}),
+  "timeframeBreakdown": zod.array(zod.object({
+  "timeframe": zod.string(),
+  "trades": zod.number(),
+  "winRate": zod.number(),
+  "totalPnl": zod.number()
+})),
+  "dayOfWeekBreakdown": zod.array(zod.object({
+  "dayOfWeek": zod.string(),
+  "dayIndex": zod.number(),
+  "trades": zod.number(),
+  "winRate": zod.number(),
+  "totalPnl": zod.number()
+})),
+  "avgHoldingTimeMinutes": zod.number().nullable(),
+  "currentStreak": zod.object({
+  "type": zod.enum(['win', 'loss', 'none']),
+  "count": zod.number()
+}),
+  "longestWinStreak": zod.number(),
+  "longestLossStreak": zod.number(),
+  "equityGrowth": zod.array(zod.object({
+  "date": zod.coerce.date(),
+  "balance": zod.number(),
+  "pnl": zod.number()
+})),
+  "monthlyPnl": zod.array(zod.object({
+  "month": zod.string(),
+  "pnl": zod.number(),
+  "trades": zod.number(),
+  "winRate": zod.number()
+})),
+  "riskDistribution": zod.array(zod.object({
+  "riskPercent": zod.string(),
+  "count": zod.number()
+})),
+  "dateFrom": zod.string().nullable(),
+  "dateTo": zod.string().nullable()
+})
+
+
+/**
+ * Returns a 0-100 score based on win rate, R:R, rule compliance, journal completion, risk management, and discipline.
+ * @summary Get OPE Performance Rating (OPR)
+ */
+export const GetOprScoreQueryParams = zod.object({
+  "period": zod.coerce.string().optional().describe('YYYY-MM for a specific month, or \'all-time\'. Defaults to current month.')
+})
+
+export const getOprScoreResponseScoreMin = 0;
+export const getOprScoreResponseScoreMax = 100;
+
+
+
+export const GetOprScoreResponse = zod.object({
+  "score": zod.number().min(getOprScoreResponseScoreMin).max(getOprScoreResponseScoreMax),
+  "grade": zod.string(),
+  "period": zod.string(),
+  "tradesAnalyzed": zod.number(),
+  "breakdown": zod.object({
+  "winRate": zod.object({
+  "score": zod.number(),
+  "weight": zod.number(),
+  "value": zod.number().nullable(),
+  "label": zod.string()
+}),
+  "riskReward": zod.object({
+  "score": zod.number(),
+  "weight": zod.number(),
+  "value": zod.number().nullable(),
+  "label": zod.string()
+}),
+  "ruleCompliance": zod.object({
+  "score": zod.number(),
+  "weight": zod.number(),
+  "value": zod.number().nullable(),
+  "label": zod.string()
+}),
+  "journalCompletion": zod.object({
+  "score": zod.number(),
+  "weight": zod.number(),
+  "value": zod.number().nullable(),
+  "label": zod.string()
+}),
+  "riskManagement": zod.object({
+  "score": zod.number(),
+  "weight": zod.number(),
+  "value": zod.number().nullable(),
+  "label": zod.string()
+}),
+  "discipline": zod.object({
+  "score": zod.number(),
+  "weight": zod.number(),
+  "value": zod.number().nullable(),
+  "label": zod.string()
+})
+}),
+  "suggestions": zod.array(zod.string())
+})
+
+
+/**
  * Returns a presigned GCS URL for direct upload. The client sends JSON
  * metadata here, then uploads the file directly to the returned URL.
  * @summary Request a presigned URL for file upload

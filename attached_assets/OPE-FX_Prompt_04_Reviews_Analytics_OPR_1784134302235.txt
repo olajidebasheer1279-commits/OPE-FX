@@ -1,0 +1,11 @@
+OPE-FX PROMPT #4
+
+Continue from the latest GitHub version. Do NOT rebuild completed features.
+
+Build:
+1. Reviews (daily, weekly, monthly, strengths, mistakes, lessons, action plan, date filters).
+2. Advanced Analytics (pair performance, buy/sell, timeframe, best/worst days, holding time, streaks, equity growth, monthly profit chart, risk distribution, PDF export).
+3. OPE Performance Rating (0-100 score using win rate, RR, rule compliance, journal completion, risk management, discipline; show grade and suggestions).
+4. Fully mobile responsive UI.
+5. Test all new and existing features.
+6. Commit, push to GitHub, update PROJECT_PROGRESS.md, provide completion report, then stop for Prompt #5.
