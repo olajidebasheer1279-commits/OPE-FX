@@ -1,3 +1,5 @@
 - [Phased build specs](phased-build-specs.md) — when a user gives multi-prompt specs (e.g. "Foundation" then "Dashboard"), build only what the active prompt allows; stub the rest as real routes with clean placeholders.
 - [Dashboard aggregate endpoints](dashboard-empty-state.md) — design zero-state aggregates so "no account yet" and "no trades yet" both return a well-formed object, not an error.
 - [object-storage-web lib setup](object-storage-web-lib-setup.md) — new workspace libs referenced via TS project references need `composite: true` + a `tsc -b` build or dependents fail to typecheck.
+- [API server zod imports](api-server-zod.md) — the api-server bundled build (esbuild) cannot resolve bare "zod" unless it's in the package's own dependencies; other routes use @workspace/api-zod schemas or do manual validation; add zod to api-server package.json when needed, then pnpm install.
+- [Orval mutation wrapper](orval-mutation-wrapper.md) — orval wraps mutation variables in `{ data: BodyType<T> }`, so calls must be `mutate({ data: { ...fields } })` not `mutate({ ...fields })` for PATCH/POST bodies.
