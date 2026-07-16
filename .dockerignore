@@ -1,0 +1,21 @@
+# Dependencies (reinstalled inside Docker)
+node_modules
+**/node_modules
+
+# Build outputs (rebuilt inside Docker)
+**/dist
+artifacts/ope-fx/dist
+
+# Dev / editor files
+.env
+.env.*
+!.env.production.example
+.git
+.gitignore
+*.log
+.DS_Store
+
+# Replit-specific
+.replit
+.local/
+attached_assets/

@@ -1,0 +1,205 @@
+OPE-FX has reached a stable state and is now ready for production deployment.
+
+DO NOT modify any existing business logic, calculations, trading features, UI, database schema, authentication, analytics, Cloudinary integration, notifications, reviews, journal, or settings.
+
+The objective is ONLY to convert the project from a Replit Runtime application into a standard production-ready application.
+
+==========================
+PRODUCTION MIGRATION
+==========================
+
+1. Remove every Replit-specific dependency and runtime requirement.
+
+This includes:
+- @replit/vite-plugin-runtime-error-modal
+- @replit/vite-plugin-cartographer
+- @replit/vite-plugin-dev-banner
+- any Replit-only runtime helpers
+
+2. Update artifacts/ope-fx/vite.config.ts
+
+Remove the requirement for:
+
+- BASE_PATH
+- REPL_ID
+
+The frontend must build correctly using standard Vite defaults.
+
+Use:
+
+base: "/"
+
+unless another production-safe base path is required.
+
+The app must no longer depend on Replit runtime variables.
+
+==========================
+EXPRESS PRODUCTION
+==========================
+
+Configure the Express backend so that production serves the Vite build.
+
+Requirements:
+
+When NODE_ENV=production
+
+Serve:
+
+artifacts/ope-fx/dist
+
+using Express static middleware.
+
+Unknown frontend routes must return index.html.
+
+API routes must continue functioning exactly as before.
+
+==========================
+BUILD PIPELINE
+==========================
+
+Create a production build pipeline.
+
+Running
+
+pnpm run build
+
+must:
+
+1. Build frontend
+2. Build backend
+3. Produce a complete deployable application
+
+No manual steps.
+
+==========================
+RENDER SUPPORT
+==========================
+
+Generate production support for Render.
+
+Create:
+
+render.yaml
+
+Include:
+
+- build command
+- start command
+- environment definitions
+
+Generate correct Render configuration.
+
+==========================
+ENVIRONMENT VARIABLES
+==========================
+
+Create:
+
+.env.production.example
+
+Include every required variable.
+
+Examples include:
+
+DATABASE_URL
+
+CLERK_SECRET_KEY
+
+VITE_CLERK_PUBLISHABLE_KEY
+
+CLOUDINARY_CLOUD_NAME
+
+CLOUDINARY_API_KEY
+
+CLOUDINARY_API_SECRET
+
+SESSION_SECRET
+
+NODE_ENV
+
+Only placeholders.
+
+Never expose secrets.
+
+==========================
+DOCKER
+==========================
+
+Generate:
+
+Dockerfile
+
+.dockerignore
+
+The application must run using Docker.
+
+==========================
+HEALTH CHECK
+==========================
+
+Create:
+
+GET /health
+
+Response:
+
+{
+  "status":"ok",
+  "version":"2.1"
+}
+
+==========================
+SECURITY
+==========================
+
+Enable production Express security.
+
+Include:
+
+helmet
+
+compression
+
+trust proxy
+
+production error handling
+
+secure cookies where applicable
+
+==========================
+OUTPUT
+==========================
+
+At completion provide:
+
+1. Production migration summary
+
+2. Build commands
+
+3. Start commands
+
+4. Render deployment instructions
+
+5. Railway deployment instructions
+
+6. Docker instructions
+
+7. Confirmation that ALL existing OPE-FX features remain unchanged.
+
+IMPORTANT:
+
+This is NOT a redesign.
+
+This is NOT a feature update.
+
+This is ONLY a production migration.
+
+No UI changes.
+
+No database changes.
+
+No calculation changes.
+
+No trading logic changes.
+
+Preserve 100% compatibility with existing user data.

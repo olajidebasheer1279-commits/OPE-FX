@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: ope-fx
+    env: node
+    region: oregon
+    plan: starter
+    buildCommand: npm install -g pnpm && pnpm install --frozen-lockfile && pnpm run build
+    startCommand: node artifacts/api-server/dist/index.mjs
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        sync: false
+      - key: CLERK_SECRET_KEY
+        sync: false
+      - key: CLERK_PUBLISHABLE_KEY
+        sync: false
+      # VITE_CLERK_PUBLISHABLE_KEY must be set as a build-time env var in the
+      # Render dashboard so Vite can inline it during the frontend build.
+      - key: VITE_CLERK_PUBLISHABLE_KEY
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: SESSION_SECRET
+        sync: false
