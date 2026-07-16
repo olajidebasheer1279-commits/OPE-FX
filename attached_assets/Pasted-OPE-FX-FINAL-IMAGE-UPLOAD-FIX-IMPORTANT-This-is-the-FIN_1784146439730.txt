@@ -1,0 +1,163 @@
+OPE-FX FINAL IMAGE UPLOAD FIX
+
+IMPORTANT
+
+This is the FINAL remaining issue before OPE-FX Version 1.0 is complete.
+
+The image upload system previously worked correctly.
+
+After moving the project to another Replit workspace (or importing from GitHub), image uploads fail.
+
+Do NOT rebuild the upload feature.
+
+Instead, diagnose and permanently fix the storage configuration so it works in any environment.
+
+===================================================
+PART A — DIAGNOSE THE ROOT CAUSE
+===================================================
+
+Determine exactly why image uploads fail after importing the project.
+
+Inspect:
+
+• Upload API
+• Storage provider
+• Environment variables
+• Database
+• Upload endpoint
+• File permissions
+• URL generation
+• Authentication
+• Storage bucket/container
+
+Explain the root cause before making changes.
+
+===================================================
+PART B — REPAIR THE STORAGE SYSTEM
+===================================================
+
+Make image uploads portable.
+
+The upload system must work after:
+
+• GitHub clone
+
+• New Replit workspace
+
+• Future Replit accounts
+
+• Production deployment
+
+without modifying application code.
+
+Only environment variables should ever need changing.
+
+===================================================
+PART C — VERIFY IMAGE WORKFLOW
+===================================================
+
+Users must be able to:
+
+✓ Upload Before screenshots
+
+✓ Upload After screenshots
+
+✓ Save trades
+
+✓ Edit trades
+
+✓ Delete trades
+
+✓ Reload page
+
+✓ Logout
+
+✓ Login
+
+✓ View images after reopening the trade
+
+✓ Images must persist permanently
+
+===================================================
+PART D — FALLBACK SYSTEM
+===================================================
+
+If the configured storage provider is unavailable:
+
+• Show a friendly error message.
+
+• Do not crash the application.
+
+• Prevent broken image URLs.
+
+===================================================
+PART E — DOCUMENTATION
+===================================================
+
+Create:
+
+IMAGE_UPLOAD_SETUP.md
+
+Include:
+
+• Storage provider used
+
+• Required environment variables
+
+• Required secrets
+
+• Bucket/container configuration
+
+• Upload endpoint
+
+• Production deployment instructions
+
+• Troubleshooting guide
+
+===================================================
+PART F — FINAL TESTING
+===================================================
+
+Perform complete testing.
+
+Verify image upload after:
+
+• Fresh GitHub clone
+
+• Fresh Replit import
+
+• New user registration
+
+• Existing user login
+
+• Multiple uploaded trades
+
+• Page refresh
+
+• Browser restart
+
+===================================================
+PART G — GITHUB
+===================================================
+
+Commit all changes.
+
+Push to GitHub.
+
+Create Git Tag:
+
+v1.0.1
+
+Provide a final report including:
+
+• Root cause discovered
+
+• Files changed
+
+• Storage configuration
+
+• Tests performed
+
+• GitHub push confirmation
+
+• Confirmation that OPE-FX image uploads now work correctly across different Replit workspaces and production deployments.

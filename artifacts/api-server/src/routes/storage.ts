@@ -47,8 +47,25 @@ router.post(
         }),
       );
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+
+      // Distinguish configuration errors from runtime errors so the client
+      // can show a meaningful message instead of a generic "server error".
+      if (
+        message.includes('PRIVATE_OBJECT_DIR not set') ||
+        message.includes('PUBLIC_OBJECT_SEARCH_PATHS not set') ||
+        message.includes("running on Replit")
+      ) {
+        req.log.warn({ err: error }, 'Object storage not configured');
+        res.status(503).json({
+          error: 'Image storage is not configured. Run setupObjectStorage() and set the required environment variables.',
+          code: 'STORAGE_NOT_CONFIGURED',
+        });
+        return;
+      }
+
       req.log.error({ err: error }, 'Error generating upload URL');
-      res.status(500).json({ error: 'Failed to generate upload URL' });
+      res.status(500).json({ error: 'Failed to generate upload URL. Please try again.' });
     }
   },
 );
@@ -139,6 +156,18 @@ router.get('/storage/objects/*path', async (req: Request, res: Response) => {
     if (error instanceof ObjectNotFoundError) {
       req.log.warn({ err: error }, 'Object not found');
       res.status(404).json({ error: 'Object not found' });
+      return;
+    }
+    const message = error instanceof Error ? error.message : String(error);
+    if (
+      message.includes('PRIVATE_OBJECT_DIR not set') ||
+      message.includes("running on Replit")
+    ) {
+      req.log.warn({ err: error }, 'Object storage not configured');
+      res.status(503).json({
+        error: 'Image storage is not configured.',
+        code: 'STORAGE_NOT_CONFIGURED',
+      });
       return;
     }
     req.log.error({ err: error }, 'Error serving object');
