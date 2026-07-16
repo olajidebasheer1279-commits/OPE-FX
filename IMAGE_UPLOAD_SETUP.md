@@ -1,81 +1,100 @@
 # OPE-FX — Image Upload Setup Guide
 
-Trade screenshots (Before/After) are stored using **Replit Object Storage** (Google Cloud Storage, managed by Replit). This guide explains how to configure image uploads in any environment.
+Trade screenshots (Before/After) are stored in **persistent cloud storage**, not on the local filesystem. Two backends are supported. The backend is selected automatically based on which environment variables are present.
 
 ---
 
-## How It Works
+## Storage Backends
+
+| Backend | When active | Portable across workspaces? | Files persist after workspace move? |
+|---------|-------------|----------------------------|--------------------------------------|
+| **Cloudinary** | `CLOUDINARY_CLOUD_NAME` is set | ✅ Yes — any environment | ✅ Yes — stored on Cloudinary CDN |
+| **Replit Object Storage** | `PRIVATE_OBJECT_DIR` is set (Replit only) | ⚠️ Per-workspace | ❌ Images in old workspace bucket not accessible from new workspace |
+
+**Recommendation:** Use Cloudinary for any setup that involves GitHub clones, multiple workspaces, or production deployments. Replit Object Storage is sufficient for a single permanent workspace.
+
+---
+
+## Backend 1 — Cloudinary (Recommended, Fully Portable)
+
+### How it works
 
 ```
-Browser → POST /api/storage/uploads/request-url  (metadata only)
-        ← { uploadURL, objectPath }
+Browser → POST /api/storage/uploads/request-url   (JSON metadata)
+        ← { uploadType: "cloudinary", uploadURL, apiKey, timestamp, signature, folder }
 
-Browser → PUT <uploadURL>                         (file bytes → GCS directly)
+Browser → POST <uploadURL> (FormData: file + signing params → Cloudinary CDN)
+        ← { secure_url: "https://res.cloudinary.com/..." }
 
-Browser → GET /api/storage/objects/<objectPath>   (served via API proxy)
+Database ← stores secure_url string
+Images   ← served directly from Cloudinary CDN (no server proxy)
 ```
 
-1. The frontend asks the API server for a **presigned PUT URL**.
-2. The browser uploads the file **directly to Google Cloud Storage** using that URL.
-3. The `objectPath` (e.g. `/objects/uploads/<uuid>`) is saved in the database on the trade record.
-4. When displaying the trade, the API server streams the image back via `/api/storage/objects/*`.
+### Setup
 
-No image data passes through the Express server — only metadata and signed URLs.
+1. Create a free account at [cloudinary.com](https://cloudinary.com) (25 GB storage / 25 GB bandwidth free per month).
+2. From your Cloudinary dashboard, copy your **Cloud name**, **API key**, and **API secret**.
+3. Set these three environment variables (Replit → Secrets, or `.env`):
 
----
+| Variable | Where to find it | Example |
+|----------|-----------------|---------|
+| `CLOUDINARY_CLOUD_NAME` | Dashboard → Settings → Account | `mycloud` |
+| `CLOUDINARY_API_KEY` | Dashboard → Settings → API keys | `123456789012345` |
+| `CLOUDINARY_API_SECRET` | Dashboard → Settings → API keys | `abc123...` |
 
-## Storage Provider
+4. Restart the API Server workflow.
+5. Upload a test screenshot on any trade — images will appear at `https://res.cloudinary.com/<cloud>/...`.
 
-| Property | Value |
-|----------|-------|
-| Provider | Google Cloud Storage (via Replit Object Storage) |
-| Auth method | Replit sidecar at `http://127.0.0.1:1106` (auto-managed) |
-| Bucket naming | `replit-objstore-<workspace-uuid>` |
-| Upload path | `<bucket>/.private/uploads/<uuid>` |
-| Serve path | `GET /api/storage/objects/uploads/<uuid>` |
+### Portability
 
----
+Cloudinary credentials are just environment variables. After a GitHub clone or workspace move:
+- Set the same three env vars in the new workspace / deployment
+- All previously uploaded images remain accessible at the same Cloudinary URLs forever
+- New uploads go to the same Cloudinary account
 
-## Required Environment Variables
-
-These are set **automatically** when you call `setupObjectStorage()`. You never need to set them by hand on Replit.
-
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `PRIVATE_OBJECT_DIR` | GCS path prefix for uploaded objects | `/replit-objstore-<id>/.private` |
-| `PUBLIC_OBJECT_SEARCH_PATHS` | GCS path prefix for public assets | `/replit-objstore-<id>/public` |
-| `DEFAULT_OBJECT_STORAGE_BUCKET_ID` | The GCS bucket ID | `replit-objstore-<id>` |
-
-> **These variables are workspace-specific.** Each Replit workspace has its own bucket. They are never committed to git.
+No bucket provisioning, no sidecar, no per-workspace setup.
 
 ---
 
-## Setup Instructions
+## Backend 2 — Replit Object Storage (Replit-only)
 
-### New Replit Workspace (after GitHub clone or fork)
+### How it works
 
-1. Open this project in Replit.
-2. Open the **Replit Agent** and run:
+```
+Browser → POST /api/storage/uploads/request-url   (JSON metadata)
+        ← { uploadType: "gcs", uploadURL (presigned PUT), objectPath }
+
+Browser → PUT <uploadURL> (file bytes → Google Cloud Storage directly)
+
+Database ← stores objectPath (e.g. /objects/uploads/<uuid>)
+Images   ← served via GET /api/storage/objects/<uuid>  (API proxy to GCS)
+```
+
+### Setup
+
+In the Replit Agent, run **once per workspace**:
 
 ```javascript
 const result = await setupObjectStorage();
 console.log(result);
+// { success: true, bucketId: "replit-objstore-<id>", secretKeys: [...] }
 ```
 
-Or ask the Agent: *"Set up object storage for image uploads"*.
+This provisions a GCS bucket and sets three env vars automatically:
 
-3. Restart the API Server workflow. The three env vars are now set automatically.
-4. Image uploads will work immediately.
+| Variable | Description |
+|----------|-------------|
+| `DEFAULT_OBJECT_STORAGE_BUCKET_ID` | GCS bucket name |
+| `PRIVATE_OBJECT_DIR` | GCS path prefix for uploaded objects |
+| `PUBLIC_OBJECT_SEARCH_PATHS` | GCS path prefix for public assets |
 
-That's it — no manual configuration needed.
+Then restart the API Server workflow.
 
-### Existing Workspace (already working)
+### Limitation
 
-No action required. The bucket is provisioned and env vars are set.
+Each Replit workspace gets a **separate GCS bucket**. When you clone the project to a new workspace, you must run `setupObjectStorage()` again, which creates a new bucket. Images uploaded in the original workspace are in the old bucket and **will not be accessible** from the new workspace.
 
-### Production Deployment (Replit Deployments)
-
-Replit Deployments automatically carry the same Object Storage secrets into production. After publishing, image uploads work without any extra steps.
+For this reason, Cloudinary is strongly recommended for projects that will be shared, cloned, or deployed.
 
 ---
 
@@ -86,100 +105,106 @@ POST /api/storage/uploads/request-url
 Authorization: Clerk session cookie (automatic in browser)
 Content-Type: application/json
 
-{
-  "name": "screenshot.png",
-  "size": 204800,
-  "contentType": "image/png"
-}
+{ "name": "screenshot.png", "size": 204800, "contentType": "image/png" }
+```
 
-→ 200 OK
+**Cloudinary response:**
+```json
 {
-  "uploadURL": "https://storage.googleapis.com/replit-objstore-<id>/.private/uploads/<uuid>?X-Goog-Signature=...",
+  "uploadType": "cloudinary",
+  "uploadURL": "https://api.cloudinary.com/v1_1/<cloud>/image/upload",
+  "apiKey": "...",
+  "timestamp": 1700000000,
+  "signature": "abc123...",
+  "folder": "ope-fx-trades",
+  "metadata": { "name": "...", "size": ..., "contentType": "..." }
+}
+```
+
+**Replit Object Storage response:**
+```json
+{
+  "uploadURL": "https://storage.googleapis.com/replit-objstore-<id>/...?X-Goog-Signature=...",
   "objectPath": "/objects/uploads/<uuid>",
   "metadata": { "name": "...", "size": ..., "contentType": "..." }
 }
 ```
 
-- The `uploadURL` is a **presigned PUT URL** valid for 15 minutes.
-- The `objectPath` is what gets stored in the database (`trades.beforeImage`, `trades.afterImage`).
-- To serve the image: `GET /api/storage/objects/uploads/<uuid>` (no auth required — route is intentionally public for image display).
+---
+
+## Image Display
+
+Both backends are handled transparently by the frontend:
+
+```typescript
+// TradeFormDialog.tsx / TradeDetails.tsx
+function resolveImageUrl(path: string | null | undefined): string | null {
+  if (!path) return null;
+  if (path.startsWith("/objects")) return `/api/storage${path}`;  // Replit GCS
+  return path;                                                      // Cloudinary full URL
+}
+```
+
+- **Cloudinary URLs** (`https://res.cloudinary.com/...`) are used directly — no proxy.
+- **GCS paths** (`/objects/uploads/<uuid>`) are proxied through `/api/storage/objects/*`.
 
 ---
 
 ## Error Handling
 
-| HTTP Status | Code | Meaning |
-|-------------|------|---------|
+| HTTP | Code | Meaning |
+|------|------|---------|
 | `400` | — | Invalid request body |
-| `401` | — | Not authenticated (Clerk session missing) |
-| `500` | — | Storage error (sidecar returned error) |
-| `503` | `STORAGE_NOT_CONFIGURED` | `PRIVATE_OBJECT_DIR` not set — run `setupObjectStorage()` |
+| `401` | — | Not authenticated |
+| `500` | — | Storage runtime error |
+| `503` | `STORAGE_NOT_CONFIGURED` | Neither Cloudinary nor Replit Object Storage is configured |
 
-When storage returns a `503`, the frontend shows a toast: *"Image upload failed: Image storage is not configured…"*. The rest of the application continues to work normally — only screenshot uploads are affected.
+When no backend is configured the app shows a toast: *"Image upload failed: Image storage is not configured…"* The rest of the app continues to work normally.
 
 ---
 
 ## Troubleshooting
 
-### "Image upload failed" toast in the app
+### "Image upload failed" toast
 
-**Check 1 — Are the env vars set?**
-
+**Step 1 — Which backend is active?**
 ```bash
-printenv | grep -E "PRIVATE_OBJECT|PUBLIC_OBJECT|DEFAULT_OBJECT"
+printenv | grep -E "CLOUDINARY_CLOUD_NAME|PRIVATE_OBJECT_DIR"
 ```
+- If `CLOUDINARY_CLOUD_NAME` is set → Cloudinary is active. Check the API key and secret are correct.
+- If `PRIVATE_OBJECT_DIR` is set → Replit Object Storage is active. Check the sidecar is running.
+- If neither → run `setupObjectStorage()` in the Agent, or set the Cloudinary vars.
 
-If empty → run `setupObjectStorage()` in the Replit Agent, then restart the API Server workflow.
+**Step 2 — Check API server logs**
 
-**Check 2 — Is the sidecar running?**
+Look for `STORAGE_NOT_CONFIGURED`, `Cloudinary upload failed`, or `Error generating upload URL` in the API Server workflow log.
+
+**Step 3 — Cloudinary-specific**
+
+- Verify the signature: the API server uses SHA-1 of alphabetically sorted `"folder=...&timestamp=..."` + api_secret. Check `CLOUDINARY_API_SECRET` is correct.
+- Check Cloudinary dashboard → Media Library for uploaded files.
+- Ensure the upload preset is not blocking the upload (if using an unsigned preset, remove it — the code uses signed uploads).
+
+**Step 4 — Replit Object Storage-specific**
 
 ```bash
+# Sidecar alive?
 curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:1106/health
+# Expected: 404 (alive but no /health route)
 ```
+If connection refused → run `setupObjectStorage()` and restart the API Server workflow.
 
-Expected: `404` (sidecar is alive; it doesn't expose a `/health` route, but a non-connection-refused response means it's running). If you get `curl: (7) Failed to connect` — the workspace may not have Object Storage enabled. Contact Replit support.
+### Images broken after GitHub clone / new workspace
 
-**Check 3 — Check API server logs**
+- **Cloudinary**: set the same `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` in the new workspace. All existing images remain accessible. ✅
+- **Replit Object Storage**: run `setupObjectStorage()` in the new workspace. New uploads work; old images from the previous workspace bucket are not migrated.
 
-Look for `STORAGE_NOT_CONFIGURED` or `Error generating upload URL` in the API Server workflow logs.
+### Old images stored as `/objects/...` paths not showing after switching to Cloudinary
 
-### Images show as broken after GitHub clone
+Images stored as `/objects/...` paths in the database are still served through the Replit Object Storage proxy (`/api/storage/objects/*`). If the Replit Object Storage env vars are no longer set, those images will return 503. Options:
 
-This is expected. Each workspace has its own bucket. After cloning:
-1. Run `setupObjectStorage()` to provision a new bucket.
-2. Restart the API Server workflow.
-3. New uploads will work. **Previously uploaded images from the old workspace are not migrated** — they lived in the original workspace's bucket.
-
-### Images disappeared after re-opening the project
-
-This should not happen on the same workspace. If it does:
-1. Check the env vars (`printenv | grep PRIVATE_OBJECT_DIR`).
-2. If the env var is still set but images are 404, the bucket may have been deleted. Run `setupObjectStorage()` again (idempotent — if bucket exists, it returns `alreadySetUp: true`).
-
-### Upload works but image doesn't display
-
-The `objectPath` stored in the database must start with `/objects/`. Check the trade record in the database:
-
-```sql
-SELECT id, before_image, after_image FROM trades WHERE before_image IS NOT NULL LIMIT 5;
-```
-
-Valid: `/objects/uploads/some-uuid`  
-Invalid: `https://storage.googleapis.com/...` (full GCS URL — the normalizer should have converted it)
-
-If you see full GCS URLs, they are from an old upload before the normalizer was in place. They will not resolve through the proxy. Update them manually or re-upload.
-
----
-
-## Non-Replit Deployment
-
-OPE-FX is designed for Replit. The sidecar-based auth (`http://127.0.0.1:1106`) is Replit-specific. Running outside Replit requires replacing the GCS auth in `artifacts/api-server/src/lib/objectStorage.ts` with standard service account credentials:
-
-1. Create a GCS bucket and a service account with `Storage Object Admin` role.
-2. Download the service account JSON key.
-3. Set `GOOGLE_APPLICATION_CREDENTIALS=/path/to/key.json` in your environment.
-4. Set `PRIVATE_OBJECT_DIR=/<your-bucket>/.private` and `PUBLIC_OBJECT_SEARCH_PATHS=/<your-bucket>/public`.
-5. Replace the `objectStorageClient` initialization in `objectStorage.ts` with `new Storage()` (no explicit credentials — it reads `GOOGLE_APPLICATION_CREDENTIALS` automatically).
+1. Keep `PRIVATE_OBJECT_DIR` set alongside the Cloudinary vars (both can coexist) so old images continue to resolve.
+2. Re-upload the affected screenshots manually.
 
 ---
 
@@ -187,9 +212,14 @@ OPE-FX is designed for Replit. The sidecar-based auth (`http://127.0.0.1:1106`) 
 
 | File | Purpose |
 |------|---------|
-| `artifacts/api-server/src/lib/objectStorage.ts` | GCS client, presigned URL generation, object serving |
-| `artifacts/api-server/src/lib/objectAcl.ts` | ACL policy framework |
-| `artifacts/api-server/src/routes/storage.ts` | Upload + serve Express routes |
-| `lib/object-storage-web/src/use-upload.ts` | Frontend upload hook (`useUpload`) |
-| `artifacts/ope-fx/src/components/trades/TradeFormDialog.tsx` | `ScreenshotField` component |
-| `artifacts/ope-fx/src/pages/TradeDetails.tsx` | Image display (`resolveImageUrl`) |
+| `artifacts/api-server/src/lib/cloudinaryStorage.ts` | Cloudinary config detection + signature generation |
+| `artifacts/api-server/src/lib/objectStorage.ts` | Replit GCS client, presigned URL generation, object serving |
+| `artifacts/api-server/src/routes/storage.ts` | Upload-url endpoint (branches on backend), object serve routes |
+| `artifacts/ope-fx/src/components/trades/TradeFormDialog.tsx` | `ScreenshotField` — handles both Cloudinary and GCS upload flows |
+| `artifacts/ope-fx/src/pages/TradeDetails.tsx` | `resolveImageUrl` — displays both Cloudinary URLs and GCS paths |
+
+---
+
+## Non-Replit Deployment
+
+When deploying outside Replit, use Cloudinary (set the three env vars). The Replit Object Storage backend depends on the sidecar at `http://127.0.0.1:1106` which only exists on Replit.

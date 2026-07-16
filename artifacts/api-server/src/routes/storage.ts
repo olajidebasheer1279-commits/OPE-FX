@@ -10,6 +10,10 @@ import {
   ObjectNotFoundError,
   ObjectStorageService,
 } from '../lib/objectStorage';
+import {
+  isCloudinaryConfigured,
+  getCloudinaryUploadParams,
+} from '../lib/cloudinaryStorage';
 
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
@@ -35,6 +39,14 @@ router.post(
     try {
       const { name, size, contentType } = parsed.data;
 
+      // ── Cloudinary backend (portable, works in any environment) ──────────
+      if (isCloudinaryConfigured()) {
+        const params = getCloudinaryUploadParams('ope-fx-trades');
+        res.json({ ...params, metadata: { name, size, contentType } });
+        return;
+      }
+
+      // ── Replit Object Storage backend (GCS via sidecar) ──────────────────
       const uploadURL = await objectStorageService.getObjectEntityUploadURL();
       const objectPath =
         objectStorageService.normalizeObjectEntityPath(uploadURL);
@@ -54,11 +66,12 @@ router.post(
       if (
         message.includes('PRIVATE_OBJECT_DIR not set') ||
         message.includes('PUBLIC_OBJECT_SEARCH_PATHS not set') ||
-        message.includes("running on Replit")
+        message.includes('running on Replit')
       ) {
         req.log.warn({ err: error }, 'Object storage not configured');
         res.status(503).json({
-          error: 'Image storage is not configured. Run setupObjectStorage() and set the required environment variables.',
+          error:
+            'Image storage is not configured. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET — or run setupObjectStorage() on Replit.',
           code: 'STORAGE_NOT_CONFIGURED',
         });
         return;

@@ -29,7 +29,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Badge } from "@/components/ui/badge";
-import { useUpload } from "@workspace/object-storage-web";
 import { useToast } from "@/hooks/use-toast";
 import {
   useCreateTrade,
@@ -128,14 +127,66 @@ function ScreenshotField({
   onChange: (url: string) => void;
 }) {
   const { toast } = useToast();
-  const { uploadFile, isUploading } = useUpload({
-    onError: (err) =>
-      toast({ title: "Image upload failed", description: err.message, variant: "destructive" }),
-  });
+  const [isUploading, setIsUploading] = useState(false);
 
   const handleFile = async (file: File) => {
-    const result = await uploadFile(file);
-    if (result) onChange(result.objectPath);
+    setIsUploading(true);
+    try {
+      // Step 1 — request upload parameters from our API
+      const res = await fetch("/api/storage/uploads/request-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: file.name,
+          size: file.size,
+          contentType: file.type || "application/octet-stream",
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as { error?: string };
+        throw new Error(err.error ?? "Failed to get upload parameters");
+      }
+      const params = await res.json() as Record<string, unknown>;
+
+      if (params.uploadType === "cloudinary") {
+        // ── Cloudinary: POST FormData directly to Cloudinary CDN ────────────
+        // Images are stored permanently on Cloudinary — no workspace dependency.
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("api_key", String(params.apiKey));
+        formData.append("timestamp", String(params.timestamp));
+        formData.append("signature", String(params.signature));
+        formData.append("folder", String(params.folder ?? "ope-fx-trades"));
+
+        const uploadRes = await fetch(String(params.uploadURL), {
+          method: "POST",
+          body: formData,
+        });
+        if (!uploadRes.ok) {
+          const uploadErr = await uploadRes.json().catch(() => ({})) as { error?: { message?: string } };
+          throw new Error(uploadErr.error?.message ?? "Cloudinary upload failed");
+        }
+        const uploadData = await uploadRes.json() as { secure_url: string };
+        onChange(uploadData.secure_url);
+      } else {
+        // ── Replit Object Storage: presigned PUT directly to GCS ─────────────
+        const putRes = await fetch(String(params.uploadURL), {
+          method: "PUT",
+          body: file,
+          headers: { "Content-Type": file.type || "application/octet-stream" },
+        });
+        if (!putRes.ok) throw new Error("Upload to storage failed");
+        onChange(String(params.objectPath));
+      }
+    } catch (err) {
+      toast({
+        title: "Image upload failed",
+        description: (err as Error).message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const resolvedSrc = value.startsWith("/objects") ? `/api/storage${value}` : value;
