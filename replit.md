@@ -1,67 +1,61 @@
 # OPE-FX
 
-A professional trading journal for Forex and synthetic-indices traders, focused on discipline, consistency, psychology, risk management, and analytics.
-
-## Run & Operate
-
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 8080)
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string (Replit-provisioned; `postgresql-16` module must be present in `.replit` modules)
-- Auth: Replit-managed Clerk tenant (`CLERK_SECRET_KEY`, `CLERK_PUBLISHABLE_KEY`, `VITE_CLERK_PUBLISHABLE_KEY`) — provisioned via `setupClerkWhitelabelAuth()`; no manual action needed
-- All three services (web, API, mockup sandbox) run via their own Replit workflows; no manual start needed
-
-## Bootstrap (first-time setup on a fresh Replit)
-
-1. `pnpm install` — install all workspace dependencies
-2. Ensure `postgresql-16` is listed in `.replit` modules (required for local DB commands)
-3. Clerk secrets are auto-provisioned by Replit — no manual key entry needed
-4. `pnpm --filter @workspace/db run push` — apply the Drizzle schema to the dev database
-5. All three workflows (`artifacts/api-server: API Server`, `artifacts/ope-fx: web`, `artifacts/mockup-sandbox: Component Preview Server`) start automatically
+A professional-grade trading journal and analytics platform for tracking trade metrics (PnL, pip values, risk/reward) with a built-in calculation engine.
 
 ## Stack
 
-- pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- **Frontend** (`artifacts/ope-fx`): React + Vite, Tailwind CSS, Radix UI, TanStack Query, Wouter, Recharts
+- **Backend** (`artifacts/api-server`): Node.js + Express, Drizzle ORM, Zod, Pino
+- **Auth**: Clerk (`@clerk/react` on frontend, `@clerk/express` on backend)
+- **Database**: PostgreSQL via Drizzle ORM (Replit managed — `DATABASE_URL` is auto-provided)
+- **Storage**: Cloudinary (optional, for image uploads)
+- **Monorepo**: pnpm workspaces + TypeScript
 
-## Where things live
+## How to run
 
-- `artifacts/ope-fx` — React/Vite frontend (all pages, app shell, Clerk wiring)
-- `artifacts/api-server` — Express API (routes in `src/routes`, dashboard aggregation logic in `src/lib/dashboard.ts`, Clerk middleware in `src/middlewares`)
-- `lib/db/src/schema` — Drizzle schema, one file per table (users, accounts, trades, journals, reviews, rules, notifications, uploads, achievements)
-- `lib/api-spec/openapi.yaml` — source of truth for the API contract; run codegen after editing
-- `PROJECT_PROGRESS.md` — feature checklist tracked across build phases
+Dependencies are installed at the monorepo root:
 
-## Architecture decisions
+```bash
+pnpm install
+```
 
-- Users table is keyed by the Clerk user id (text PK) and JIT-provisioned on first authenticated request (`requireAuth` middleware), rather than a separate serial id joined to an external auth id.
-- The dashboard is a single aggregate endpoint (`GET /api/dashboard/summary`) computed on the fly from `accounts`/`trades` rather than a denormalized stats table — simplest correct approach at this data volume.
-- A user with no trading account yet gets a well-formed zeroed `DashboardSummary` (not a 404/error), so the frontend's empty state is reachable without special-casing "no account" vs "no trades".
-- Only Dashboard is fully functional per the phased spec; Trade Log, Journal, Reviews, Rules, Analytics, and Trading Assistant are placeholder pages inside the real app shell/routes, intentionally deferred to future prompts.
+The two main services start automatically via managed workflows:
 
-## Product
+| Service | Workflow | Port |
+|---------|----------|------|
+| Frontend (ope-fx) | `artifacts/ope-fx: web` | 19427 → preview root `/` |
+| API Server | `artifacts/api-server: API Server` | 8080 → `/api` |
 
-- Public landing page at `/`, redirects signed-in users to `/dashboard`.
-- Clerk-backed auth (email + Google) with custom-branded sign-in/sign-up.
-- App shell: header (search, balance, today's P/L, notifications, avatar) + sidebar nav, mobile hamburger/drawer + floating "New Trade" button.
-- Dashboard: balance/P&L/win-rate/R:R stat cards, equity curve, outcome breakdown, goal progress, recent trades, quick actions, loading/error/empty states.
-- Trade Log, Journal, Reviews, Rules, Analytics, and Trading Assistant are "coming soon" placeholders awaiting future prompts.
+## Environment variables
+
+| Key | Where | Notes |
+|-----|-------|-------|
+| `CLERK_SECRET_KEY` | Secret | Clerk backend key (`sk_test_…`) |
+| `CLERK_PUBLISHABLE_KEY` | Shared env | Clerk publishable key (`pk_test_…`) |
+| `VITE_CLERK_PUBLISHABLE_KEY` | Shared env | Same key as above, exposed to Vite |
+| `DATABASE_URL` | Runtime-managed | Auto-provided by Replit PostgreSQL |
+| `CLOUDINARY_CLOUD_NAME` | Shared env | Optional — image upload |
+| `CLOUDINARY_API_KEY` | Shared env | Optional — image upload |
+| `CLOUDINARY_API_SECRET` | Secret | Optional — image upload |
+
+## Database
+
+Schema is managed by Drizzle ORM in `lib/db/src/schema/`. To push schema changes to the database:
+
+```bash
+pnpm --filter @workspace/db run push
+```
+
+## Shared libraries
+
+| Package | Path | Purpose |
+|---------|------|---------|
+| `@workspace/calc-engine` | `lib/calc-engine` | Trade PnL / pip calculation engine |
+| `@workspace/db` | `lib/db` | Drizzle schema + DB client |
+| `@workspace/api-zod` | `lib/api-zod` | Shared Zod validation schemas |
+| `@workspace/api-client-react` | `lib/api-client-react` | Generated TanStack Query hooks |
+| `@workspace/object-storage-web` | `lib/object-storage-web` | Replit Object Storage client |
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
-
-## Gotchas
-
-- After changing `lib/api-spec/openapi.yaml`, run `pnpm --filter @workspace/api-spec run codegen` before using new hooks/schemas in the frontend or backend.
-- After changing DB schema files, run `pnpm --filter @workspace/db run push` to apply to the dev database.
-
-## Pointers
-
-- See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- Keep the existing monorepo structure and stack — do not restructure or migrate.
