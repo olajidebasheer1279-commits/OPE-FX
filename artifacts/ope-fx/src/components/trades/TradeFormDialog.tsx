@@ -45,7 +45,7 @@ import { computeTradeCalc, calcLotSizeFromRisk, type Market } from "@workspace/c
 // Constants
 // ---------------------------------------------------------------------------
 
-const MARKETS = ["Forex", "Metals", "Indices", "Synthetic Indices"] as const;
+const MARKETS = ["Forex", "Metals", "Indices", "Synthetic Indices", "Crypto"] as const;
 type MarketType = (typeof MARKETS)[number];
 
 // ---------------------------------------------------------------------------

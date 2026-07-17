@@ -12,7 +12,7 @@
  *   potProfit    = tpPips × pipValuePerLot × lotSize
  */
 
-export type Market = "Forex" | "Metals" | "Indices" | "Synthetic Indices";
+export type Market = "Forex" | "Metals" | "Indices" | "Synthetic Indices" | "Crypto";
 
 export interface InstrumentSpec {
   pipSize: number;
@@ -98,6 +98,19 @@ function forexPipSize(symbol: string): number {
   return symbol.includes("JPY") ? 0.01 : 0.0001;
 }
 
+// ---------------------------------------------------------------------------
+// Crypto (1 lot = 1 coin, USD-quoted — pip value = contractSize × pipSize)
+// ---------------------------------------------------------------------------
+const CRYPTO_SPECS: Record<string, InstrumentSpec> = {
+  BTCUSD:  { pipSize: 1,      contractSize: 1, quoteType: "usd-quoted" }, // $1/pip/lot
+  ETHUSD:  { pipSize: 0.01,   contractSize: 1, quoteType: "usd-quoted" }, // $0.01/pip/lot
+  SOLUSD:  { pipSize: 0.001,  contractSize: 1, quoteType: "usd-quoted" }, // $0.001/pip/lot
+  XRPUSD:  { pipSize: 0.0001, contractSize: 1, quoteType: "usd-quoted" }, // $0.0001/pip/lot
+  ADAUSD:  { pipSize: 0.0001, contractSize: 1, quoteType: "usd-quoted" }, // $0.0001/pip/lot
+  DOGEUSD: { pipSize: 0.0001, contractSize: 1, quoteType: "usd-quoted" }, // $0.0001/pip/lot
+  LTCUSD:  { pipSize: 0.01,   contractSize: 1, quoteType: "usd-quoted" }, // $0.01/pip/lot
+};
+
 /**
  * Returns the InstrumentSpec for the given market/symbol.
  * Falls back gracefully for unknown symbols.
@@ -117,6 +130,13 @@ export function getInstrumentSpec(market: Market, symbol: string): InstrumentSpe
     if (key) return INDEX_SPECS[key];
     // Unknown index: 1-point CFD
     return { pipSize: 1, contractSize: 1, quoteType: "usd-quoted" };
+  }
+
+  if (market === "Crypto") {
+    const key = Object.keys(CRYPTO_SPECS).find((k) => sym.includes(k) || k.includes(sym));
+    if (key) return CRYPTO_SPECS[key];
+    // Unknown crypto: treat as USD-quoted, 1-unit contract
+    return { pipSize: 0.01, contractSize: 1, quoteType: "usd-quoted" };
   }
 
   if (market === "Synthetic Indices") {
