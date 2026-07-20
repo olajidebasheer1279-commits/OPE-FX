@@ -178,7 +178,9 @@ export function getInstrumentSpec(market: Market, symbol: string): InstrumentSpe
     return { pipSize, contractSize, quoteType: "usd-base" };
   }
 
-  // Cross JPY pairs (EUR/JPY, GBP/JPY, AUD/JPY, etc.) — approximate
+  // Cross JPY pairs (EUR/JPY, GBP/JPY, AUD/JPY, CAD/JPY, CHF/JPY, etc.)
+  // pip = 0.01, value ≈ (100,000 × 0.01) / ~150 ≈ $6.67 — rounded to $8 as a conservative
+  // approximation covering a range of USD/JPY rates.
   if (sym.includes("JPY") && !sym.startsWith("USD")) {
     return {
       pipSize,
@@ -186,6 +188,38 @@ export function getInstrumentSpec(market: Market, symbol: string): InstrumentSpe
       quoteType: "approximate",
       approxPipValuePerLot: 8.0,
     };
+  }
+
+  // Cross non-JPY, non-USD pairs (GBPAUD, EURGBP, AUDNZD, GBPNZD, EURCAD, etc.)
+  // For a standard lot: pip value in USD = contractSize × pipSize × (quoteCcy/USD rate)
+  //                                      = 100,000 × 0.0001 × rate = 10 × rate
+  // Rates are representative mid-market approximations; close enough for risk sizing.
+  if (sym.length === 6) {
+    const quoteCcy = sym.slice(3);
+    const QUOTE_CCY_PIP_VALUE: Record<string, number> = {
+      EUR: 10.80, // 10 × ~1.080
+      GBP: 12.70, // 10 × ~1.270
+      AUD:  6.50, // 10 × ~0.650
+      NZD:  6.00, // 10 × ~0.600
+      CAD:  7.40, // 10 × ~0.740
+      CHF: 11.20, // 10 × ~1.120
+      SGD:  7.40, // 10 × ~0.740
+      HKD:  1.28, // 10 × ~0.128
+      NOK:  0.95, // 10 × ~0.095
+      SEK:  0.96, // 10 × ~0.096
+      DKK:  1.45, // 10 × ~0.145
+      ZAR:  0.55, // 10 × ~0.055
+      MXN:  0.58, // 10 × ~0.058
+      TRY:  0.31, // 10 × ~0.031
+      PLN:  2.50, // 10 × ~0.250
+      CNH:  1.38, // 10 × ~0.138
+      CZK:  0.44, // 10 × ~0.044
+      HUF:  0.028,// 10 × ~0.0028
+    };
+    const approxPipValuePerLot = QUOTE_CCY_PIP_VALUE[quoteCcy];
+    if (approxPipValuePerLot !== undefined) {
+      return { pipSize, contractSize, quoteType: "approximate", approxPipValuePerLot };
+    }
   }
 
   // USD is quote currency (EUR/USD, GBP/USD, AUD/USD, NZD/USD…)
