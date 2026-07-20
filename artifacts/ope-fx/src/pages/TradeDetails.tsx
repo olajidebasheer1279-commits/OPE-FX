@@ -359,7 +359,17 @@ export default function TradeDetails() {
                     alt="Before screenshot"
                     className="w-full h-40 sm:h-52 object-cover hover:opacity-90 transition-opacity"
                     loading="lazy"
+                    onError={(e) => {
+                      const target = e.currentTarget;
+                      target.style.display = "none";
+                      const placeholder = target.nextElementSibling as HTMLElement | null;
+                      if (placeholder) placeholder.style.display = "flex";
+                    }}
                   />
+                  <div style={{ display: "none" }} className="w-full h-40 sm:h-52 flex flex-col items-center justify-center gap-2 bg-secondary/30 text-muted-foreground">
+                    <ImageIcon className="h-6 w-6" />
+                    <span className="text-xs">Image unavailable</span>
+                  </div>
                 </button>
                 <p className="text-[10px] text-muted-foreground text-center">Tap to enlarge</p>
               </div>
@@ -378,7 +388,17 @@ export default function TradeDetails() {
                     alt="After screenshot"
                     className="w-full h-40 sm:h-52 object-cover hover:opacity-90 transition-opacity"
                     loading="lazy"
+                    onError={(e) => {
+                      const target = e.currentTarget;
+                      target.style.display = "none";
+                      const placeholder = target.nextElementSibling as HTMLElement | null;
+                      if (placeholder) placeholder.style.display = "flex";
+                    }}
                   />
+                  <div style={{ display: "none" }} className="w-full h-40 sm:h-52 flex flex-col items-center justify-center gap-2 bg-secondary/30 text-muted-foreground">
+                    <ImageIcon className="h-6 w-6" />
+                    <span className="text-xs">Image unavailable</span>
+                  </div>
                 </button>
                 <p className="text-[10px] text-muted-foreground text-center">Tap to enlarge</p>
               </div>

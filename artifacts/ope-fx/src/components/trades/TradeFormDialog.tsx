@@ -200,7 +200,17 @@ function ScreenshotField({
             src={resolvedSrc}
             alt={label}
             className="rounded-lg border border-border w-full h-32 object-cover"
+            onError={(e) => {
+              const target = e.currentTarget;
+              target.style.display = "none";
+              const placeholder = target.nextElementSibling as HTMLElement | null;
+              if (placeholder) placeholder.style.display = "flex";
+            }}
           />
+          <div style={{ display: "none" }} className="rounded-lg border border-dashed border-border w-full h-32 flex flex-col items-center justify-center gap-1 bg-secondary/20 text-muted-foreground">
+            <ImagePlus className="h-5 w-5" />
+            <span className="text-xs">Image unavailable</span>
+          </div>
           <button
             type="button"
             onClick={() => onChange("")}
