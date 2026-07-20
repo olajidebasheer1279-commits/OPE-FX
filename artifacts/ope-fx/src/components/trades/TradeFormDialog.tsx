@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { AlertTriangle, ImagePlus, Loader2, X, TrendingUp, TrendingDown } from "lucide-react";
+import { AlertTriangle, ImagePlus, Info, Loader2, X, TrendingUp, TrendingDown } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -39,7 +39,7 @@ import {
   type Trade,
 } from "@workspace/api-client-react";
 import { queryClient } from "@/lib/queryClient";
-import { computeTradeCalc, calcLotSizeFromRisk, type Market } from "@workspace/calc-engine";
+import { computeTradeCalc, calcLotSizeFromRisk, getInstrumentSpec, type Market } from "@workspace/calc-engine";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -244,9 +244,11 @@ interface CalcPreviewPanelProps {
   values: TradeFormValues;
   accountBalance: number;
   riskMode: "lot" | "riskPercent";
+  manualRiskAmount: string;
+  onManualRiskAmountChange: (v: string) => void;
 }
 
-function CalcPreviewPanel({ values, accountBalance, riskMode }: CalcPreviewPanelProps) {
+function CalcPreviewPanel({ values, accountBalance, riskMode, manualRiskAmount, onManualRiskAmountChange }: CalcPreviewPanelProps) {
   const entry = Number(values.entryPrice) || 0;
   const sl = Number(values.stopLoss) || null;
   const tp = Number(values.takeProfit) || null;
@@ -293,8 +295,27 @@ function CalcPreviewPanel({ values, accountBalance, riskMode }: CalcPreviewPanel
     );
   }
 
-  const hasRisk = calc.riskAmount !== null;
-  const hasProfit = calc.potentialProfit !== null;
+  // --- Manual risk override (non-USD Forex cross pairs) ---
+  const manualRiskNum = parseFloat(manualRiskAmount) || 0;
+  const derivedRiskPct =
+    calc.requiresManualRisk && manualRiskNum > 0 && accountBalance > 0
+      ? (manualRiskNum / accountBalance) * 100
+      : null;
+  const derivedPotProfit =
+    calc.requiresManualRisk &&
+    manualRiskNum > 0 &&
+    calc.slPips !== null &&
+    calc.tpPips !== null &&
+    calc.slPips > 0
+      ? manualRiskNum * (calc.tpPips / calc.slPips)
+      : null;
+  const derivedProfitPct =
+    derivedPotProfit !== null && accountBalance > 0
+      ? (derivedPotProfit / accountBalance) * 100
+      : null;
+
+  const hasRisk = calc.requiresManualRisk ? manualRiskNum > 0 : calc.riskAmount !== null;
+  const hasProfit = calc.requiresManualRisk ? derivedPotProfit !== null : calc.potentialProfit !== null;
 
   return (
     <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-3">
@@ -326,27 +347,46 @@ function CalcPreviewPanel({ values, accountBalance, riskMode }: CalcPreviewPanel
           </div>
         </div>
 
-        {/* Risk amount */}
-        <div className={`rounded p-2 text-center ${hasRisk ? "bg-red-500/10" : "bg-background"}`}>
-          <div className="text-xs text-muted-foreground mb-0.5">Risk Amount</div>
-          <div className={`text-sm font-semibold ${hasRisk ? "text-red-400" : ""}`}>
-            {hasRisk ? fmtCcy(calc.riskAmount) : "—"}
+        {/* Risk amount — manual input for cross pairs, auto for everything else */}
+        {calc.requiresManualRisk ? (
+          <div className="bg-background rounded p-2">
+            <div className="text-xs text-muted-foreground mb-0.5">Risk Amount (MT5)</div>
+            <input
+              type="number"
+              step="any"
+              min="0"
+              value={manualRiskAmount}
+              onChange={(e) => onManualRiskAmountChange(e.target.value)}
+              placeholder="From MT5"
+              className="w-full text-sm font-semibold bg-transparent border-b border-border focus:outline-none focus:border-primary placeholder:text-muted-foreground/50 placeholder:font-normal"
+            />
           </div>
-        </div>
+        ) : (
+          <div className={`rounded p-2 text-center ${hasRisk ? "bg-red-500/10" : "bg-background"}`}>
+            <div className="text-xs text-muted-foreground mb-0.5">Risk Amount</div>
+            <div className={`text-sm font-semibold ${hasRisk ? "text-red-400" : ""}`}>
+              {hasRisk ? fmtCcy(calc.riskAmount) : "—"}
+            </div>
+          </div>
+        )}
 
-        {/* Risk % */}
+        {/* Risk % — derived from manual amount for cross pairs */}
         <div className={`rounded p-2 text-center ${hasRisk ? "bg-red-500/10" : "bg-background"}`}>
           <div className="text-xs text-muted-foreground mb-0.5">Risk %</div>
           <div className={`text-sm font-semibold ${hasRisk ? "text-red-400" : ""}`}>
-            {calc.riskPercent !== null ? `${fmtNum(calc.riskPercent)}%` : "—"}
+            {calc.requiresManualRisk
+              ? (derivedRiskPct !== null ? `${fmtNum(derivedRiskPct)}%` : "—")
+              : (calc.riskPercent !== null ? `${fmtNum(calc.riskPercent)}%` : "—")}
           </div>
         </div>
 
-        {/* Potential profit */}
+        {/* Potential profit — derived from pip ratio × manual risk for cross pairs */}
         <div className={`rounded p-2 text-center ${hasProfit ? "bg-emerald-500/10" : "bg-background"}`}>
           <div className="text-xs text-muted-foreground mb-0.5">Pot. Profit</div>
           <div className={`text-sm font-semibold ${hasProfit ? "text-emerald-400" : ""}`}>
-            {hasProfit ? fmtCcy(calc.potentialProfit) : "—"}
+            {calc.requiresManualRisk
+              ? (derivedPotProfit !== null ? fmtCcy(derivedPotProfit) : "—")
+              : (hasProfit ? fmtCcy(calc.potentialProfit) : "—")}
           </div>
         </div>
 
@@ -354,7 +394,9 @@ function CalcPreviewPanel({ values, accountBalance, riskMode }: CalcPreviewPanel
         <div className={`rounded p-2 text-center ${hasProfit ? "bg-emerald-500/10" : "bg-background"}`}>
           <div className="text-xs text-muted-foreground mb-0.5">Profit %</div>
           <div className={`text-sm font-semibold ${hasProfit ? "text-emerald-400" : ""}`}>
-            {calc.potentialProfitPercent !== null ? `${fmtNum(calc.potentialProfitPercent)}%` : "—"}
+            {calc.requiresManualRisk
+              ? (derivedProfitPct !== null ? `${fmtNum(derivedProfitPct)}%` : "—")
+              : (calc.potentialProfitPercent !== null ? `${fmtNum(calc.potentialProfitPercent)}%` : "—")}
           </div>
         </div>
 
@@ -378,6 +420,17 @@ function CalcPreviewPanel({ values, accountBalance, riskMode }: CalcPreviewPanel
           ))}
         </div>
       )}
+
+      {/* Helper message for cross-currency pairs */}
+      {calc.requiresManualRisk && (
+        <div className="flex items-start gap-1.5 text-xs text-muted-foreground border border-border/50 rounded p-2 bg-muted/20">
+          <Info className="h-3.5 w-3.5 mt-0.5 shrink-0 text-primary" />
+          <span>
+            This pair requires manual Risk Amount because MT5 calculates pip value using live
+            currency conversion. Enter the exact Risk Amount from your MT5 trade.
+          </span>
+        </div>
+      )}
     </div>
   );
 }
@@ -399,6 +452,9 @@ export function TradeFormDialog({
   const [beforeUrl, setBeforeUrl] = useState(trade?.beforeScreenshotUrl ?? "");
   const [afterUrl, setAfterUrl] = useState(trade?.afterScreenshotUrl ?? "");
   const [riskMode, setRiskMode] = useState<"lot" | "riskPercent">("lot");
+  const [manualRiskAmount, setManualRiskAmount] = useState(
+    trade?.riskAmount != null ? String(trade.riskAmount) : "",
+  );
 
   // Get account balance for live calculations
   const { data: accountData } = useGetAccount();
@@ -417,6 +473,7 @@ export function TradeFormDialog({
       setBeforeUrl(trade?.beforeScreenshotUrl ?? "");
       setAfterUrl(trade?.afterScreenshotUrl ?? "");
       setRiskMode("lot");
+      setManualRiskAmount(trade?.riskAmount != null ? String(trade.riskAmount) : "");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, trade]);
@@ -497,6 +554,12 @@ export function TradeFormDialog({
       resolvedLotSize = ls;
     }
 
+    // For non-USD Forex cross pairs the engine can't reliably compute a dollar
+    // risk amount — send the manually entered value so the server stores it.
+    const spec = getInstrumentSpec(values.market as Market, values.symbol);
+    const isCrossPair = values.market === "Forex" && spec.quoteType === "approximate";
+    const manualRiskNum = isCrossPair && manualRiskAmount ? Number(manualRiskAmount) : undefined;
+
     const payload = {
       symbol: values.symbol.toUpperCase(),
       market: values.market,
@@ -506,6 +569,7 @@ export function TradeFormDialog({
       stopLoss: numOrUndef(values.stopLoss),
       takeProfit: numOrUndef(values.takeProfit),
       lotSize: resolvedLotSize,
+      riskAmount: manualRiskNum,
       timeframe: values.timeframe || undefined,
       strategy: values.strategy || undefined,
       notes: values.notes || undefined,
@@ -725,6 +789,8 @@ export function TradeFormDialog({
               values={previewValues}
               accountBalance={accountBalance}
               riskMode={riskMode}
+              manualRiskAmount={manualRiskAmount}
+              onManualRiskAmountChange={setManualRiskAmount}
             />
 
             {/* ---- Exit Price ---- */}

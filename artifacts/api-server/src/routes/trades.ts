@@ -99,6 +99,16 @@ router.post("/trades", requireAuth, async (req, res): Promise<void> => {
     accountBalance: toNumber(account.currentBalance),
   });
 
+  // For non-USD cross pairs the client sends the exact MT5 risk amount.
+  // Respect it instead of overwriting with the engine's approximate value.
+  const balance = toNumber(account.currentBalance);
+  const finalRiskAmount =
+    body.riskAmount !== undefined ? body.riskAmount : metrics.riskAmount;
+  const finalRiskPercent =
+    body.riskAmount !== undefined && balance > 0
+      ? (body.riskAmount / balance) * 100
+      : metrics.riskPercent;
+
   const [trade] = await db
     .insert(tradesTable)
     .values({
@@ -113,8 +123,8 @@ router.post("/trades", requireAuth, async (req, res): Promise<void> => {
       stopLoss: body.stopLoss?.toString() ?? null,
       takeProfit: body.takeProfit?.toString() ?? null,
       lotSize: body.lotSize.toString(),
-      riskPercent: metrics.riskPercent?.toString() ?? null,
-      riskAmount: metrics.riskAmount?.toString() ?? null,
+      riskPercent: finalRiskPercent?.toString() ?? null,
+      riskAmount: finalRiskAmount?.toString() ?? null,
       pnl: metrics.pnl?.toString() ?? null,
       pips: metrics.pips?.toString() ?? null,
       riskRewardRatio: metrics.riskRewardRatio?.toString() ?? null,
@@ -255,6 +265,16 @@ router.patch("/trades/:id", requireAuth, async (req, res): Promise<void> => {
     accountBalance: toNumber(account.currentBalance),
   });
 
+  // For non-USD cross pairs the client sends the exact MT5 risk amount.
+  // Respect it instead of overwriting with the engine's approximate value.
+  const patchBalance = toNumber(account.currentBalance);
+  const finalRiskAmount =
+    body.riskAmount !== undefined ? body.riskAmount : metrics.riskAmount;
+  const finalRiskPercent =
+    body.riskAmount !== undefined && patchBalance > 0
+      ? (body.riskAmount / patchBalance) * 100
+      : metrics.riskPercent;
+
   const previousPnl =
     existing.pnl === null ? 0 : toNumber(existing.pnl);
   const newPnl = metrics.pnl ?? 0;
@@ -272,8 +292,8 @@ router.patch("/trades/:id", requireAuth, async (req, res): Promise<void> => {
       stopLoss: merged.stopLoss?.toString() ?? null,
       takeProfit: merged.takeProfit?.toString() ?? null,
       lotSize: merged.lotSize.toString(),
-      riskPercent: metrics.riskPercent?.toString() ?? null,
-      riskAmount: metrics.riskAmount?.toString() ?? null,
+      riskPercent: finalRiskPercent?.toString() ?? null,
+      riskAmount: finalRiskAmount?.toString() ?? null,
       pnl: metrics.pnl?.toString() ?? null,
       pips: metrics.pips?.toString() ?? null,
       riskRewardRatio: metrics.riskRewardRatio?.toString() ?? null,

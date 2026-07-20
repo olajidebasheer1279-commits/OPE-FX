@@ -47,6 +47,13 @@ export interface CalcResult {
   /** True when the instrument uses MT5 point logic (Synthetic Indices).
    *  UI should display "pts" instead of "pips". */
   usesPoints: boolean;
+  /**
+   * True for non-USD Forex cross pairs (GBPAUD, EURGBP, CADJPY, etc.).
+   * The pip value requires a live conversion rate that the engine doesn't have,
+   * so riskAmount / riskPercent / potentialProfit are nulled out and the UI
+   * must collect the risk amount manually from the user's MT5.
+   */
+  requiresManualRisk: boolean;
   /** Trade status derived from exitPrice */
   status: "open" | "closed";
   /** Trade outcome for closed trades */
@@ -95,6 +102,9 @@ export function computeTradeCalc(input: CalcInput): CalcResult {
   const pipValue = getPipValuePerLot(spec, entryPrice);
   const contractSize = spec.contractSize;
   const usesPoints = spec.usesPoints ?? false;
+  // Non-USD Forex cross pairs need a live conversion rate the engine doesn't have.
+  // We still compute pip distances & R:R but null the dollar risk/profit fields.
+  const requiresManualRisk = market === "Forex" && spec.quoteType === "approximate";
   const dirSign = direction === "long" ? 1 : -1;
 
   const warnings: string[] = [];
@@ -207,14 +217,17 @@ export function computeTradeCalc(input: CalcInput): CalcResult {
   return {
     slPips,
     tpPips,
-    riskAmount: inputRiskPercent != null ? round((accountBalance * inputRiskPercent) / 100, 2) : riskAmount,
-    riskPercent: inputRiskPercent != null ? inputRiskPercent : riskPercent,
-    potentialProfit,
-    potentialProfitPercent,
+    // For cross pairs the engine cannot reliably convert pip risk to USD —
+    // null these out so the UI knows to collect the value from MT5 instead.
+    riskAmount:   requiresManualRisk ? null : inputRiskPercent != null ? round((accountBalance * inputRiskPercent) / 100, 2) : riskAmount,
+    riskPercent:  requiresManualRisk ? null : inputRiskPercent != null ? inputRiskPercent : riskPercent,
+    potentialProfit:        requiresManualRisk ? null : potentialProfit,
+    potentialProfitPercent: requiresManualRisk ? null : potentialProfitPercent,
     riskRewardRatio,
     pnl,
     pips,
     usesPoints,
+    requiresManualRisk,
     status,
     outcome,
     computedLotSize,
