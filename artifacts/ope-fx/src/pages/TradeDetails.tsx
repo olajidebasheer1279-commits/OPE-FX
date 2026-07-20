@@ -323,7 +323,10 @@ export default function TradeDetails() {
           <Field label="Lot Size" value={fmt(trade.lotSize, 2)} />
           <Field label="Risk %" value={trade.riskPercent != null ? `${fmt(trade.riskPercent, 2)}%` : undefined} />
           <Field label="Risk Amount" value={formatCurrency(trade.riskAmount)} />
-          <Field label="Pips" value={trade.pips != null ? `${fmt(trade.pips, 1)} pips` : undefined} />
+          <Field
+            label={trade.market === "Synthetic Indices" ? "Points" : "Pips"}
+            value={trade.pips != null ? `${fmt(trade.pips, 1)} ${trade.market === "Synthetic Indices" ? "pts" : "pips"}` : undefined}
+          />
           <Field
             label="Risk : Reward"
             value={trade.riskRewardRatio != null ? `${fmt(trade.riskRewardRatio, 2)}R` : undefined}

@@ -21,6 +21,11 @@ export interface InstrumentSpec {
   quoteType: "usd-quoted" | "usd-base" | "approximate";
   /** Approximate pip value per lot when quoteType === 'approximate' */
   approxPipValuePerLot?: number;
+  /**
+   * When true the instrument counts in MT5 points (minimum price increment),
+   * not Forex pips.  UI should display "pts" instead of "pips".
+   */
+  usesPoints?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -55,39 +60,51 @@ const INDEX_SPECS: Record<string, InstrumentSpec> = {
 };
 
 // ---------------------------------------------------------------------------
-// Synthetic Indices (Deriv/Binary.com specific)
-// Each has a fixed USD pip value per lot.
+// Synthetic Indices (Deriv/Binary.com — MT5 point logic)
+//
+// PnL formula (MT5):  priceDiff × contractSize × lots
+// pointValue per lot: pipSize × contractSize  (same as usd-quoted)
+//
+// quoteType is "usd-quoted" so getPipValuePerLot returns pipSize × contractSize,
+// which is the exact MT5 point value.  usesPoints:true drives the UI label.
 // ---------------------------------------------------------------------------
+const S = (pipSize: number, contractSize = 1): InstrumentSpec => ({
+  pipSize,
+  contractSize,
+  quoteType: "usd-quoted",
+  usesPoints: true,
+});
+
 const SYNTHETIC_SPECS: Record<string, InstrumentSpec> = {
   // Volatility Indices
-  "V10":    { pipSize: 0.001, contractSize: 1, quoteType: "approximate", approxPipValuePerLot: 0.01 },
-  "V10(1S)":{ pipSize: 0.001, contractSize: 1, quoteType: "approximate", approxPipValuePerLot: 0.01 },
-  "V25":    { pipSize: 0.001, contractSize: 1, quoteType: "approximate", approxPipValuePerLot: 0.025 },
-  "V25(1S)":{ pipSize: 0.001, contractSize: 1, quoteType: "approximate", approxPipValuePerLot: 0.025 },
-  "V50":    { pipSize: 0.001, contractSize: 1, quoteType: "approximate", approxPipValuePerLot: 0.05 },
-  "V50(1S)":{ pipSize: 0.001, contractSize: 1, quoteType: "approximate", approxPipValuePerLot: 0.05 },
-  "V75":    { pipSize: 0.001, contractSize: 1, quoteType: "approximate", approxPipValuePerLot: 0.1 },
-  "V75(1S)":{ pipSize: 0.001, contractSize: 1, quoteType: "approximate", approxPipValuePerLot: 0.1 },
-  "V100":   { pipSize: 0.001, contractSize: 1, quoteType: "approximate", approxPipValuePerLot: 0.25 },
-  "V100(1S)":{ pipSize: 0.001, contractSize: 1, quoteType: "approximate", approxPipValuePerLot: 0.25 },
+  "V10":     S(0.001),
+  "V10(1S)": S(0.001),
+  "V25":     S(0.001),
+  "V25(1S)": S(0.001),
+  "V50":     S(0.001),
+  "V50(1S)": S(0.001),
+  "V75":     S(0.001),
+  "V75(1S)": S(0.001),
+  "V100":    S(0.001),
+  "V100(1S)":S(0.001),
   // Crash & Boom
-  "CRASH300":  { pipSize: 0.001, contractSize: 1, quoteType: "approximate", approxPipValuePerLot: 0.01 },
-  "CRASH500":  { pipSize: 0.001, contractSize: 1, quoteType: "approximate", approxPipValuePerLot: 0.01 },
-  "CRASH1000": { pipSize: 0.001, contractSize: 1, quoteType: "approximate", approxPipValuePerLot: 0.01 },
-  "BOOM300":   { pipSize: 0.001, contractSize: 1, quoteType: "approximate", approxPipValuePerLot: 0.01 },
-  "BOOM500":   { pipSize: 0.001, contractSize: 1, quoteType: "approximate", approxPipValuePerLot: 0.01 },
-  "BOOM1000":  { pipSize: 0.001, contractSize: 1, quoteType: "approximate", approxPipValuePerLot: 0.01 },
+  "CRASH300":  S(0.001),
+  "CRASH500":  S(0.001),
+  "CRASH1000": S(0.001),
+  "BOOM300":   S(0.001),
+  "BOOM500":   S(0.001),
+  "BOOM1000":  S(0.001),
   // Step Indices
-  "STPIDX10": { pipSize: 0.1, contractSize: 1, quoteType: "approximate", approxPipValuePerLot: 0.1 },
+  "STPIDX10": S(0.1),
   // Range Break
-  "RB100": { pipSize: 0.1, contractSize: 1, quoteType: "approximate", approxPipValuePerLot: 0.1 },
-  "RB200": { pipSize: 0.1, contractSize: 1, quoteType: "approximate", approxPipValuePerLot: 0.1 },
+  "RB100": S(0.1),
+  "RB200": S(0.1),
   // Jump Indices
-  "JUMP10":  { pipSize: 0.001, contractSize: 1, quoteType: "approximate", approxPipValuePerLot: 0.01 },
-  "JUMP25":  { pipSize: 0.001, contractSize: 1, quoteType: "approximate", approxPipValuePerLot: 0.025 },
-  "JUMP50":  { pipSize: 0.001, contractSize: 1, quoteType: "approximate", approxPipValuePerLot: 0.05 },
-  "JUMP75":  { pipSize: 0.001, contractSize: 1, quoteType: "approximate", approxPipValuePerLot: 0.1 },
-  "JUMP100": { pipSize: 0.001, contractSize: 1, quoteType: "approximate", approxPipValuePerLot: 0.25 },
+  "JUMP10":  S(0.001),
+  "JUMP25":  S(0.001),
+  "JUMP50":  S(0.001),
+  "JUMP75":  S(0.001),
+  "JUMP100": S(0.001),
 };
 
 /**
@@ -148,13 +165,8 @@ export function getInstrumentSpec(market: Market, symbol: string): InstrumentSpe
         return sym.includes(clean) || clean.includes(sym);
       });
     if (key) return SYNTHETIC_SPECS[key];
-    // Unknown synthetic: generic small-pip instrument
-    return {
-      pipSize: 0.001,
-      contractSize: 1,
-      quoteType: "approximate",
-      approxPipValuePerLot: 0.01,
-    };
+    // Unknown synthetic: MT5 point logic, generic small-point instrument
+    return S(0.001);
   }
 
   // Forex (default market)

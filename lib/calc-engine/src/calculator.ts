@@ -42,8 +42,11 @@ export interface CalcResult {
   riskRewardRatio: number | null;
   /** Realized P&L for a closed trade */
   pnl: number | null;
-  /** Realized pips for a closed trade */
+  /** Realized pips/points for a closed trade */
   pips: number | null;
+  /** True when the instrument uses MT5 point logic (Synthetic Indices).
+   *  UI should display "pts" instead of "pips". */
+  usesPoints: boolean;
   /** Trade status derived from exitPrice */
   status: "open" | "closed";
   /** Trade outcome for closed trades */
@@ -91,6 +94,7 @@ export function computeTradeCalc(input: CalcInput): CalcResult {
   const pipSize = spec.pipSize;
   const pipValue = getPipValuePerLot(spec, entryPrice);
   const contractSize = spec.contractSize;
+  const usesPoints = spec.usesPoints ?? false;
   const dirSign = direction === "long" ? 1 : -1;
 
   const warnings: string[] = [];
@@ -210,6 +214,7 @@ export function computeTradeCalc(input: CalcInput): CalcResult {
     riskRewardRatio,
     pnl,
     pips,
+    usesPoints,
     status,
     outcome,
     computedLotSize,

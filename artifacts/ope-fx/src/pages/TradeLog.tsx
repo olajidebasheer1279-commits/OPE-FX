@@ -265,7 +265,7 @@ export default function TradeLog() {
                     <th className="py-3 px-4 font-medium">Status</th>
                     <th className="py-3 px-4 font-medium text-right">Entry</th>
                     <th className="py-3 px-4 font-medium text-right">Exit</th>
-                    <th className="py-3 px-4 font-medium text-right">Pips</th>
+                    <th className="py-3 px-4 font-medium text-right">Pips/Pts</th>
                     <th className="py-3 px-4 font-medium text-right">R:R</th>
                     <th className="py-3 px-4 font-medium text-right">Net P/L</th>
                     <th className="py-3 px-4 font-medium text-center">Shots</th>
@@ -284,7 +284,11 @@ export default function TradeLog() {
                       <td className="py-3 px-4">{outcomeBadge(trade)}</td>
                       <td className="py-3 px-4 text-right text-muted-foreground">{trade.entryPrice}</td>
                       <td className="py-3 px-4 text-right text-muted-foreground">{trade.exitPrice ?? "-"}</td>
-                      <td className="py-3 px-4 text-right text-muted-foreground">{trade.pips?.toFixed(1) ?? "-"}</td>
+                      <td className="py-3 px-4 text-right text-muted-foreground">
+                        {trade.pips != null
+                          ? `${trade.pips.toFixed(1)} ${trade.market === "Synthetic Indices" ? "pts" : ""}`
+                          : "-"}
+                      </td>
                       <td className="py-3 px-4 text-right">{trade.riskRewardRatio ? `${trade.riskRewardRatio.toFixed(2)}R` : "-"}</td>
                       <td className={`py-3 px-4 text-right font-semibold ${trade.pnl ? (trade.pnl > 0 ? "text-emerald-500" : trade.pnl < 0 ? "text-destructive" : "text-muted-foreground") : "text-muted-foreground"}`}>
                         {formatCurrency(trade.pnl)}

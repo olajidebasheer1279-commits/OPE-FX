@@ -314,7 +314,7 @@ function CalcPreviewPanel({ values, accountBalance, riskMode }: CalcPreviewPanel
         <div className="bg-background rounded p-2 text-center">
           <div className="text-xs text-muted-foreground mb-0.5">SL Distance</div>
           <div className="text-sm font-semibold">
-            {calc.slPips !== null ? `${calc.slPips} pips` : "—"}
+            {calc.slPips !== null ? `${calc.slPips} ${calc.usesPoints ? "pts" : "pips"}` : "—"}
           </div>
         </div>
 
@@ -322,7 +322,7 @@ function CalcPreviewPanel({ values, accountBalance, riskMode }: CalcPreviewPanel
         <div className="bg-background rounded p-2 text-center">
           <div className="text-xs text-muted-foreground mb-0.5">TP Distance</div>
           <div className="text-sm font-semibold">
-            {calc.tpPips !== null ? `${calc.tpPips} pips` : "—"}
+            {calc.tpPips !== null ? `${calc.tpPips} ${calc.usesPoints ? "pts" : "pips"}` : "—"}
           </div>
         </div>
 
