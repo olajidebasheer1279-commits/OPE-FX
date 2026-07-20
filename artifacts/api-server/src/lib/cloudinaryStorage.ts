@@ -21,6 +21,8 @@ export interface CloudinaryUploadParams {
   timestamp: number;
   signature: string;
   folder: string;
+  /** Always 'sha256' — required by Cloudinary accounts created after Nov 2020. */
+  signatureAlgorithm: 'sha256';
 }
 
 /**
@@ -48,8 +50,10 @@ export function getCloudinaryUploadParams(
 
   const timestamp = Math.round(Date.now() / 1000);
 
-  // Signature: SHA-1 of alphabetically sorted "key=value" pairs + api_secret.
+  // Signature: SHA-256 of alphabetically sorted "key=value" pairs + api_secret.
   // Parameters excluded from signing: file, resource_type, type, api_key.
+  // SHA-256 is required for Cloudinary accounts created after November 2020.
+  // The client must also send signature_algorithm=sha256 in the upload FormData.
   const paramsToSign: Record<string, string | number> = { folder, timestamp };
   const paramString = Object.keys(paramsToSign)
     .sort()
@@ -57,7 +61,7 @@ export function getCloudinaryUploadParams(
     .join('&');
 
   const signature = crypto
-    .createHash('sha1')
+    .createHash('sha256')
     .update(paramString + apiSecret)
     .digest('hex');
 
@@ -68,5 +72,6 @@ export function getCloudinaryUploadParams(
     timestamp,
     signature,
     folder,
+    signatureAlgorithm: 'sha256',
   };
 }

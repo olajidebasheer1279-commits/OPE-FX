@@ -157,6 +157,10 @@ function ScreenshotField({
         formData.append("timestamp", String(params.timestamp));
         formData.append("signature", String(params.signature));
         formData.append("folder", String(params.folder ?? "ope-fx-trades"));
+        // Required when the server signs with SHA-256 (accounts created after Nov 2020)
+        if (params.signatureAlgorithm === "sha256") {
+          formData.append("signature_algorithm", "sha256");
+        }
 
         const uploadRes = await fetch(String(params.uploadURL), {
           method: "POST",
