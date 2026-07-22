@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { and, asc, desc, eq, gte, ilike, lte, or, type SQL } from "drizzle-orm";
-import { db, tradesTable, accountsTable } from "@workspace/db";
+import { db, tradesTable, accountsTable, alertsTable, alertHistoryTable } from "@workspace/db";
 import {
   ListTradesQueryParams,
   ListTradesResponse,
@@ -339,6 +339,25 @@ router.delete("/trades/:id", requireAuth, async (req, res): Promise<void> => {
   }
 
   const account = await getOrCreateDefaultAccount(req.userId!);
+
+  // Delete linked alert history and alerts before removing the trade
+  // (alert_history → alerts → trades FK chain prevents direct trade delete)
+  const linkedAlerts = await db
+    .select({ id: alertsTable.id })
+    .from(alertsTable)
+    .where(eq(alertsTable.tradeId, existing.id));
+
+  if (linkedAlerts.length > 0) {
+    for (const alert of linkedAlerts) {
+      await db
+        .delete(alertHistoryTable)
+        .where(eq(alertHistoryTable.alertId, alert.id));
+    }
+    await db
+      .delete(alertsTable)
+      .where(eq(alertsTable.tradeId, existing.id));
+  }
+
   await db.delete(tradesTable).where(eq(tradesTable.id, existing.id));
 
   // Recompute balance from scratch to prevent drift

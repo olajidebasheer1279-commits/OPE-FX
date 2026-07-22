@@ -11,6 +11,7 @@ import accountRouter from "./account";
 import notificationsRouter from "./notifications";
 import assistantRouter from "./assistant";
 import backupRouter from "./backup";
+import alertsRouter from "./alerts";
 
 const router: IRouter = Router();
 
@@ -26,5 +27,6 @@ router.use(accountRouter);
 router.use(notificationsRouter);
 router.use(assistantRouter);
 router.use(backupRouter);
+router.use(alertsRouter);
 
 export default router;

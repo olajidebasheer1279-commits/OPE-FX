@@ -8,6 +8,13 @@
       "when": 1784530292223,
       "tag": "0000_dapper_swordsman",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1784684102825,
+      "tag": "0001_normal_boomerang",
+      "breakpoints": true
     }
   ]
 }
