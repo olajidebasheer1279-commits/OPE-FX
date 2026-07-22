@@ -32,6 +32,12 @@ export const alertsTable = pgTable("alerts", {
   symbol: text("symbol").notNull(),
   // Custom message shown when triggered
   message: text("message"),
+  // Whether the alert re-arms after firing (true) or fires once then disables (false)
+  repeat: boolean("repeat").notNull().default(true),
+  // Hex colour swatch displayed in the UI (e.g. "#3b82f6")
+  color: text("color").notNull().default("#3b82f6"),
+  // Audio cue: 'none' | 'chime' | 'beep' | 'bell'
+  sound: text("sound").notNull().default("none"),
   isEnabled: boolean("is_enabled").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()

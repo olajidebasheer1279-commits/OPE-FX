@@ -11,6 +11,8 @@ const router: IRouter = Router();
 const AlertType = z.enum(["price", "pnl", "drawdown", "rr", "custom"]);
 const AlertCondition = z.enum(["above", "below", "equals"]);
 
+const AlertSound = z.enum(["none", "chime", "beep", "bell"]);
+
 const CreateAlertBody = z.object({
   name: z.string().min(1).max(255),
   type: AlertType.optional().default("price"),
@@ -20,6 +22,9 @@ const CreateAlertBody = z.object({
   message: z.string().max(500).optional(),
   tradeId: z.number().int().positive().optional(),
   isEnabled: z.boolean().optional().default(true),
+  repeat: z.boolean().optional().default(true),
+  color: z.string().max(20).optional().default("#3b82f6"),
+  sound: AlertSound.optional().default("none"),
 });
 
 const UpdateAlertBody = z.object({
@@ -30,6 +35,9 @@ const UpdateAlertBody = z.object({
   symbol: z.string().min(1).max(20).optional(),
   message: z.string().max(500).nullable().optional(),
   isEnabled: z.boolean().optional(),
+  repeat: z.boolean().optional(),
+  color: z.string().max(20).optional(),
+  sound: AlertSound.optional(),
 });
 
 const AlertIdParam = z.object({
@@ -50,6 +58,9 @@ function serializeAlert(a: typeof alertsTable.$inferSelect) {
     symbol: a.symbol,
     message: a.message,
     isEnabled: a.isEnabled,
+    repeat: a.repeat,
+    color: a.color,
+    sound: a.sound,
     createdAt: a.createdAt.toISOString(),
     updatedAt: a.updatedAt.toISOString(),
   };
@@ -95,6 +106,9 @@ router.post("/alerts", requireAuth, async (req, res): Promise<void> => {
         symbol: body.symbol,
         message: body.message ?? null,
         isEnabled: body.isEnabled,
+        repeat: body.repeat,
+        color: body.color,
+        sound: body.sound,
       })
       .returning();
 
@@ -128,6 +142,9 @@ router.patch("/alerts/:id", requireAuth, async (req, res): Promise<void> => {
   if (body.symbol !== undefined) updateFields.symbol = body.symbol;
   if (body.message !== undefined) updateFields.message = body.message ?? null;
   if (body.isEnabled !== undefined) updateFields.isEnabled = body.isEnabled;
+  if (body.repeat !== undefined) updateFields.repeat = body.repeat;
+  if (body.color !== undefined) updateFields.color = body.color;
+  if (body.sound !== undefined) updateFields.sound = body.sound;
 
   if (Object.keys(updateFields).length === 0) {
     res.status(400).json({ error: "No fields to update" });

@@ -2,7 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { AlertTriangle, ImagePlus, Info, Loader2, X, TrendingUp, TrendingDown } from "lucide-react";
+import {
+  AlertTriangle, Bell, ImagePlus, Info, Loader2, X,
+  TrendingUp, TrendingDown,
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -39,7 +42,13 @@ import {
   type Trade,
 } from "@workspace/api-client-react";
 import { queryClient } from "@/lib/queryClient";
-import { computeTradeCalc, calcLotSizeFromRisk, getInstrumentSpec, type Market } from "@workspace/calc-engine";
+import {
+  computeTradeCalc,
+  calcLotSizeFromRisk,
+  getInstrumentSpec,
+  type Market,
+} from "@workspace/calc-engine";
+import { AlertMenuDialog, type LocalAlert } from "./AlertMenuDialog";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -114,6 +123,95 @@ function fmtCcy(val: number | null | undefined): string {
 }
 
 // ---------------------------------------------------------------------------
+// Alert API helpers (raw fetch — no generated hooks for alerts yet)
+// ---------------------------------------------------------------------------
+
+interface BackendAlert {
+  id: number;
+  tradeId: number | null;
+  condition: string;
+  targetValue: number;
+  symbol: string;
+  message: string | null;
+  isEnabled: boolean;
+  repeat: boolean;
+  color: string;
+  sound: string;
+}
+
+async function fetchAlertsForTrade(tradeId: number): Promise<LocalAlert[]> {
+  try {
+    const res = await fetch("/api/alerts");
+    if (!res.ok) return [];
+    const data: BackendAlert[] = await res.json();
+    return data
+      .filter((a) => a.tradeId === tradeId)
+      .map((a) => ({
+        id: a.id,
+        price: String(a.targetValue),
+        condition: (a.condition as LocalAlert["condition"]) ?? "above",
+        note: a.message ?? "",
+        isEnabled: a.isEnabled,
+        repeat: a.repeat,
+        color: a.color ?? "#3b82f6",
+        sound: (a.sound as LocalAlert["sound"]) ?? "none",
+      }));
+  } catch {
+    return [];
+  }
+}
+
+async function createAlertOnBackend(
+  alert: Omit<LocalAlert, "id">,
+  tradeId: number,
+  symbol: string,
+): Promise<void> {
+  await fetch("/api/alerts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: `${symbol} ${alert.condition} ${alert.price}`,
+      type: "price",
+      condition: alert.condition,
+      targetValue: parseFloat(alert.price),
+      symbol: symbol.toUpperCase(),
+      message: alert.note || null,
+      tradeId,
+      isEnabled: alert.isEnabled,
+      repeat: alert.repeat,
+      color: alert.color,
+      sound: alert.sound,
+    }),
+  });
+}
+
+async function updateAlertOnBackend(
+  id: number,
+  alert: LocalAlert,
+  symbol: string,
+): Promise<void> {
+  await fetch(`/api/alerts/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: `${symbol} ${alert.condition} ${alert.price}`,
+      condition: alert.condition,
+      targetValue: parseFloat(alert.price),
+      symbol: symbol.toUpperCase(),
+      message: alert.note || null,
+      isEnabled: alert.isEnabled,
+      repeat: alert.repeat,
+      color: alert.color,
+      sound: alert.sound,
+    }),
+  });
+}
+
+async function deleteAlertOnBackend(id: number): Promise<void> {
+  await fetch(`/api/alerts/${id}`, { method: "DELETE" });
+}
+
+// ---------------------------------------------------------------------------
 // Screenshot field (unchanged)
 // ---------------------------------------------------------------------------
 
@@ -150,7 +248,6 @@ function ScreenshotField({
 
       if (params.uploadType === "cloudinary") {
         // ── Cloudinary: POST FormData directly to Cloudinary CDN ────────────
-        // Images are stored permanently on Cloudinary — no workspace dependency.
         const formData = new FormData();
         formData.append("file", file);
         formData.append("api_key", String(params.apiKey));
@@ -470,6 +567,17 @@ export function TradeFormDialog({
     trade?.riskAmount != null ? String(trade.riskAmount) : "",
   );
 
+  // ── Alert state ──────────────────────────────────────────────────────────
+  const [alerts, setAlerts] = useState<LocalAlert[]>([]);
+  const [alertsOpen, setAlertsOpen] = useState(false);
+  /**
+   * IDs of alerts that already exist on the backend when the form opens in
+   * edit mode. Used to diff which alerts need to be deleted on save.
+   */
+  const [originalAlertIds, setOriginalAlertIds] = useState<Set<number>>(new Set());
+
+  const [isSaving, setIsSaving] = useState(false);
+
   // Get account balance for live calculations
   const { data: accountData } = useGetAccount();
   const accountBalance = accountData?.currentBalance ?? 10000;
@@ -481,13 +589,25 @@ export function TradeFormDialog({
 
   const watchedValues = useWatch({ control: form.control });
 
+  // Load / reset state whenever the dialog opens
   useEffect(() => {
-    if (open) {
-      form.reset(defaultValues(trade));
-      setBeforeUrl(trade?.beforeScreenshotUrl ?? "");
-      setAfterUrl(trade?.afterScreenshotUrl ?? "");
-      setRiskMode("lot");
-      setManualRiskAmount(trade?.riskAmount != null ? String(trade.riskAmount) : "");
+    if (!open) return;
+    form.reset(defaultValues(trade));
+    setBeforeUrl(trade?.beforeScreenshotUrl ?? "");
+    setAfterUrl(trade?.afterScreenshotUrl ?? "");
+    setRiskMode("lot");
+    setManualRiskAmount(trade?.riskAmount != null ? String(trade.riskAmount) : "");
+    setIsSaving(false);
+
+    // For edit mode: fetch existing alerts from the backend
+    if (trade?.id) {
+      fetchAlertsForTrade(trade.id).then((fetched) => {
+        setAlerts(fetched);
+        setOriginalAlertIds(new Set(fetched.map((a) => a.id!).filter(Boolean)));
+      });
+    } else {
+      setAlerts([]);
+      setOriginalAlertIds(new Set());
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, trade]);
@@ -497,33 +617,44 @@ export function TradeFormDialog({
     queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
   };
 
-  const createMutation = useCreateTrade({
-    mutation: {
-      onSuccess: () => {
-        invalidate();
-        toast({ title: "Trade logged" });
-        onOpenChange(false);
-      },
-      onError: (err) =>
-        toast({ title: "Failed to save trade", description: err.message, variant: "destructive" }),
-    },
-  });
+  const createMutation = useCreateTrade();
+  const updateMutation = useUpdateTrade();
 
-  const updateMutation = useUpdateTrade({
-    mutation: {
-      onSuccess: () => {
-        invalidate();
-        toast({ title: "Trade updated" });
-        onOpenChange(false);
-      },
-      onError: (err) =>
-        toast({ title: "Failed to save trade", description: err.message, variant: "destructive" }),
-    },
-  });
+  // ── Alert sync helpers ───────────────────────────────────────────────────
 
-  const isSaving = createMutation.isPending || updateMutation.isPending;
+  /** Create all alerts for a brand-new trade */
+  async function saveAlertsForNewTrade(tradeId: number, symbol: string) {
+    for (const alert of alerts) {
+      await createAlertOnBackend(alert, tradeId, symbol);
+    }
+  }
 
-  const onSubmit = (values: TradeFormValues) => {
+  /** Diff and sync alerts for an existing trade */
+  async function syncAlertsForExistingTrade(tradeId: number, symbol: string) {
+    const currentIds = new Set(alerts.filter((a) => a.id).map((a) => a.id!));
+
+    // Delete alerts that were present when the form opened but are now gone
+    for (const id of originalAlertIds) {
+      if (!currentIds.has(id)) {
+        await deleteAlertOnBackend(id);
+      }
+    }
+
+    // Upsert remaining alerts
+    for (const alert of alerts) {
+      if (alert.id && originalAlertIds.has(alert.id)) {
+        // Update existing
+        await updateAlertOnBackend(alert.id, alert, symbol);
+      } else {
+        // Create new (no id, or id not in originals)
+        await createAlertOnBackend(alert, tradeId, symbol);
+      }
+    }
+  }
+
+  // ── Form submission (async — chains alert saves after trade save) ─────────
+
+  const onSubmit = async (values: TradeFormValues) => {
     const numOrUndef = (v: number | string | undefined) =>
       v === "" || v === undefined || Number.isNaN(v) ? undefined : Number(v);
 
@@ -568,8 +699,6 @@ export function TradeFormDialog({
       resolvedLotSize = ls;
     }
 
-    // For non-USD Forex cross pairs the engine can't reliably compute a dollar
-    // risk amount — send the manually entered value so the server stores it.
     const spec = getInstrumentSpec(values.market as Market, values.symbol);
     const isCrossPair = values.market === "Forex" && spec.quoteType === "approximate";
     const manualRiskNum = isCrossPair && manualRiskAmount ? Number(manualRiskAmount) : undefined;
@@ -593,10 +722,29 @@ export function TradeFormDialog({
       closedAt: values.closedAt ? new Date(values.closedAt).toISOString() : undefined,
     };
 
-    if (trade) {
-      updateMutation.mutate({ id: trade.id, data: payload });
-    } else {
-      createMutation.mutate({ data: payload });
+    setIsSaving(true);
+    try {
+      const upperSymbol = values.symbol.toUpperCase();
+
+      if (trade) {
+        await updateMutation.mutateAsync({ id: trade.id, data: payload });
+        await syncAlertsForExistingTrade(trade.id, upperSymbol);
+      } else {
+        const created = await createMutation.mutateAsync({ data: payload });
+        await saveAlertsForNewTrade(created.id, upperSymbol);
+      }
+
+      invalidate();
+      toast({ title: trade ? "Trade updated" : "Trade logged" });
+      onOpenChange(false);
+    } catch (err) {
+      toast({
+        title: "Failed to save trade",
+        description: (err as Error).message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -618,297 +766,350 @@ export function TradeFormDialog({
     closedAt: watchedValues.closedAt ?? "",
   };
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{trade ? "Edit Trade" : "Log Trade"}</DialogTitle>
-        </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            {/* ---- Symbol / Market / Direction ---- */}
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="symbol"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Pair / Symbol</FormLabel>
-                    <FormControl>
-                      <Input placeholder="EURUSD" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="market"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Market</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger className="w-full">
-                          <SelectValue />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {MARKETS.map((m) => (
-                          <SelectItem key={m} value={m}>
-                            {m}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="direction"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Direction</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger className="w-full">
-                          <SelectValue />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="long">
-                          <span className="flex items-center gap-1.5">
-                            <TrendingUp className="h-3.5 w-3.5 text-emerald-500" /> Long
-                          </span>
-                        </SelectItem>
-                        <SelectItem value="short">
-                          <span className="flex items-center gap-1.5">
-                            <TrendingDown className="h-3.5 w-3.5 text-red-500" /> Short
-                          </span>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="entryPrice"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Entry Price</FormLabel>
-                    <FormControl>
-                      <Input type="number" step="any" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="stopLoss"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Stop Loss</FormLabel>
-                    <FormControl>
-                      <Input type="number" step="any" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="takeProfit"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Take Profit</FormLabel>
-                    <FormControl>
-                      <Input type="number" step="any" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+  const watchedSymbol = watchedValues.symbol ?? trade?.symbol ?? "";
+  const watchedMarket = watchedValues.market ?? trade?.market ?? "Forex";
 
-            {/* ---- Risk Mode Toggle + Lot Size / Risk % ---- */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">Position sizing:</span>
-                <div className="flex rounded-md overflow-hidden border border-border">
-                  <button
-                    type="button"
-                    onClick={() => setRiskMode("lot")}
-                    className={`px-3 py-1 text-xs font-medium transition-colors ${riskMode === "lot" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}
-                  >
-                    Lot Size
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setRiskMode("riskPercent")}
-                    className={`px-3 py-1 text-xs font-medium transition-colors ${riskMode === "riskPercent" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}
-                  >
-                    Risk % Mode
-                  </button>
-                </div>
+  return (
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{trade ? "Edit Trade" : "Log Trade"}</DialogTitle>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              {/* ---- Symbol / Market / Direction ---- */}
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="symbol"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Pair / Symbol</FormLabel>
+                      <FormControl>
+                        <Input placeholder="EURUSD" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="market"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Market</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger className="w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {MARKETS.map((m) => (
+                            <SelectItem key={m} value={m}>
+                              {m}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="direction"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Direction</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger className="w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="long">
+                            <span className="flex items-center gap-1.5">
+                              <TrendingUp className="h-3.5 w-3.5 text-emerald-500" /> Long
+                            </span>
+                          </SelectItem>
+                          <SelectItem value="short">
+                            <span className="flex items-center gap-1.5">
+                              <TrendingDown className="h-3.5 w-3.5 text-red-500" /> Short
+                            </span>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="entryPrice"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Entry Price</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="any" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="stopLoss"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Stop Loss</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="any" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="takeProfit"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Take Profit</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="any" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
 
-              {riskMode === "lot" ? (
+              {/* ---- Risk Mode Toggle + Lot Size / Risk % ---- */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">Position sizing:</span>
+                  <div className="flex rounded-md overflow-hidden border border-border">
+                    <button
+                      type="button"
+                      onClick={() => setRiskMode("lot")}
+                      className={`px-3 py-1 text-xs font-medium transition-colors ${riskMode === "lot" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}
+                    >
+                      Lot Size
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRiskMode("riskPercent")}
+                      className={`px-3 py-1 text-xs font-medium transition-colors ${riskMode === "riskPercent" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}
+                    >
+                      Risk % Mode
+                    </button>
+                  </div>
+                </div>
+
+                {riskMode === "lot" ? (
+                  <FormField
+                    control={form.control}
+                    name="lotSize"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Lot Size</FormLabel>
+                        <FormControl>
+                          <Input type="number" step="any" placeholder="0.01" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                ) : (
+                  <FormField
+                    control={form.control}
+                    name="targetRiskPercent"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Risk % of Balance</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            step="0.1"
+                            min="0.1"
+                            max="10"
+                            placeholder="e.g. 1.5"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                        <p className="text-xs text-muted-foreground">
+                          Balance: ${accountBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </p>
+                      </FormItem>
+                    )}
+                  />
+                )}
+              </div>
+
+              {/* ---- Live Calculation Preview ---- */}
+              <CalcPreviewPanel
+                values={previewValues}
+                accountBalance={accountBalance}
+                riskMode={riskMode}
+                manualRiskAmount={manualRiskAmount}
+                onManualRiskAmountChange={setManualRiskAmount}
+              />
+
+              {/* ---- Exit Price ---- */}
+              <FormField
+                control={form.control}
+                name="exitPrice"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Exit Price</FormLabel>
+                    <FormControl>
+                      <Input type="number" step="any" placeholder="Leave blank if open" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* ---- Timeframe / Strategy / Dates ---- */}
+              <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
-                  name="lotSize"
+                  name="timeframe"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Lot Size</FormLabel>
+                      <FormLabel>Timeframe</FormLabel>
                       <FormControl>
-                        <Input type="number" step="any" placeholder="0.01" {...field} />
+                        <Input placeholder="H1, H4, D1..." {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-              ) : (
                 <FormField
                   control={form.control}
-                  name="targetRiskPercent"
+                  name="strategy"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Risk % of Balance</FormLabel>
+                      <FormLabel>Strategy</FormLabel>
                       <FormControl>
-                        <Input
-                          type="number"
-                          step="0.1"
-                          min="0.1"
-                          max="10"
-                          placeholder="e.g. 1.5"
-                          {...field}
+                        <Input placeholder="Order block, breakout..." {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="openedAt"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Opened At</FormLabel>
+                      <FormControl>
+                        <Input type="datetime-local" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="closedAt"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Closed At</FormLabel>
+                      <FormControl>
+                        <Input type="datetime-local" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={form.control}
+                name="notes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Notes</FormLabel>
+                    <FormControl>
+                      <Textarea rows={3} placeholder="Setup notes, execution quality..." {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* ── 🔔 Alerts button ─────────────────────────────────────────────── */}
+              <button
+                type="button"
+                onClick={() => setAlertsOpen(true)}
+                className="w-full flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/20 px-4 py-3 text-sm hover:bg-muted/40 hover:border-primary/40 transition-all group"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="h-7 w-7 rounded-md bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                    <Bell className="h-3.5 w-3.5 text-primary" />
+                  </div>
+                  <div className="text-left">
+                    <div className="font-medium">Alerts</div>
+                    <div className="text-xs text-muted-foreground">
+                      {alerts.length === 0
+                        ? "No alerts — click to add price alerts"
+                        : `${alerts.length} alert${alerts.length > 1 ? "s" : ""} configured`}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {alerts.length > 0 && (
+                    <div className="flex gap-1">
+                      {alerts.map((a, i) => (
+                        <span
+                          key={i}
+                          className="h-2.5 w-2.5 rounded-full"
+                          style={{ backgroundColor: a.color }}
+                          title={`${a.price} ${a.condition}`}
                         />
-                      </FormControl>
-                      <FormMessage />
-                      <p className="text-xs text-muted-foreground">
-                        Balance: ${accountBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </p>
-                    </FormItem>
+                      ))}
+                    </div>
                   )}
-                />
-              )}
-            </div>
+                  <Badge variant={alerts.length > 0 ? "default" : "outline"} className="text-xs">
+                    {alerts.length}/{3}
+                  </Badge>
+                </div>
+              </button>
 
-            {/* ---- Live Calculation Preview ---- */}
-            <CalcPreviewPanel
-              values={previewValues}
-              accountBalance={accountBalance}
-              riskMode={riskMode}
-              manualRiskAmount={manualRiskAmount}
-              onManualRiskAmountChange={setManualRiskAmount}
-            />
+              <div className="grid grid-cols-2 gap-4">
+                <ScreenshotField label="Before Screenshot" value={beforeUrl} onChange={setBeforeUrl} />
+                <ScreenshotField label="After Screenshot" value={afterUrl} onChange={setAfterUrl} />
+              </div>
 
-            {/* ---- Exit Price ---- */}
-            <FormField
-              control={form.control}
-              name="exitPrice"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Exit Price</FormLabel>
-                  <FormControl>
-                    <Input type="number" step="any" placeholder="Leave blank if open" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isSaving}>
+                  {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  {trade ? "Save Changes" : "Log Trade"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
 
-            {/* ---- Timeframe / Strategy / Dates ---- */}
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="timeframe"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Timeframe</FormLabel>
-                    <FormControl>
-                      <Input placeholder="H1, H4, D1..." {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="strategy"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Strategy</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Order block, breakout..." {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="openedAt"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Opened At</FormLabel>
-                    <FormControl>
-                      <Input type="datetime-local" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="closedAt"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Closed At</FormLabel>
-                    <FormControl>
-                      <Input type="datetime-local" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <FormField
-              control={form.control}
-              name="notes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Notes</FormLabel>
-                  <FormControl>
-                    <Textarea rows={3} placeholder="Setup notes, execution quality..." {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <div className="grid grid-cols-2 gap-4">
-              <ScreenshotField label="Before Screenshot" value={beforeUrl} onChange={setBeforeUrl} />
-              <ScreenshotField label="After Screenshot" value={afterUrl} onChange={setAfterUrl} />
-            </div>
-
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isSaving}>
-                {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                {trade ? "Save Changes" : "Log Trade"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
+      {/* Alert Menu Dialog — rendered outside the trade Dialog to avoid z-index stacking */}
+      <AlertMenuDialog
+        open={alertsOpen}
+        onOpenChange={setAlertsOpen}
+        alerts={alerts}
+        onAlertsChange={setAlerts}
+        symbol={watchedSymbol}
+        market={watchedMarket}
+      />
+    </>
   );
 }
