@@ -36,6 +36,7 @@ import {
 } from "@workspace/api-client-react";
 import { queryClient } from "@/lib/queryClient";
 import { formatDistanceToNow } from "date-fns";
+import { useAlertStream } from "@/hooks/useAlertStream";
 
 const NAV_ITEMS = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -339,6 +340,9 @@ export function Header() {
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [, setLocation] = useLocation();
+
+  // Connect to the real-time alert stream (fires toasts + sounds on alert trigger)
+  useAlertStream();
 
   return (
     <div className="min-h-[100dvh] flex bg-background text-foreground selection:bg-primary/30">

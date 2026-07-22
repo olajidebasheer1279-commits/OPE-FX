@@ -3,6 +3,8 @@ import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod/v4";
 import { db, alertsTable, alertHistoryTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/requireAuth";
+import { alertEngine } from "../lib/alert-engine";
+import { marketEngine } from "../lib/market-data/engine";
 
 const router: IRouter = Router();
 
@@ -112,6 +114,10 @@ router.post("/alerts", requireAuth, async (req, res): Promise<void> => {
       })
       .returning();
 
+    // Immediately subscribe to the symbol and refresh alert cache
+    marketEngine.ensureSubscribed(alert.symbol);
+    void alertEngine.invalidateCache();
+
     res.status(201).json(serializeAlert(alert));
   } catch (err) {
     req.log.error({ err }, "Error creating alert");
@@ -209,6 +215,7 @@ router.patch(
         .where(eq(alertsTable.id, existing.id))
         .returning();
 
+      void alertEngine.invalidateCache();
       res.json(serializeAlert(updated));
     } catch (err) {
       req.log.error({ err }, "Error toggling alert");
@@ -248,6 +255,7 @@ router.delete("/alerts/:id", requireAuth, async (req, res): Promise<void> => {
       .where(eq(alertHistoryTable.alertId, existing.id));
 
     await db.delete(alertsTable).where(eq(alertsTable.id, existing.id));
+    void alertEngine.invalidateCache();
 
     res.sendStatus(204);
   } catch (err) {
