@@ -15,14 +15,19 @@ A full-stack trading journal and analytics cockpit for disciplined Forex, Metals
 
 ## Running the app
 
-Two workflows run automatically:
+The imported project is configured with managed Replit workflows:
 
 - **OPE-FX (frontend)** — `pnpm --filter @workspace/ope-fx run dev` → port 19427
 - **API Server** — `pnpm --filter @workspace/api-server run dev` → port 8080
+- **Canvas preview** — `pnpm --filter @workspace/mockup-sandbox run dev` → port 8081
 
 Install dependencies: `pnpm install`
 
 Push DB schema: `pnpm --filter @workspace/db run push`
+
+The public API health check is available at `/healthz` on the API service and
+returns the current service status. The frontend is served at the root preview
+path.
 
 ## Environment variables / secrets required
 
