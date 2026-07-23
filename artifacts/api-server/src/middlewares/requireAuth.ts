@@ -17,19 +17,6 @@ export async function requireAuth(
   next: NextFunction,
 ): Promise<void> {
   const auth = getAuth(req);
-  const authDebug =
-    typeof auth?.debug === "function" ? auth.debug() : undefined;
-  const authDiagnostic = {
-    hasAuthorizationHeader: Boolean(req.headers.authorization),
-    hasCookieHeader: Boolean(req.headers.cookie),
-    hasUserId: Boolean(auth?.userId),
-    hasSessionId: Boolean(auth?.sessionId),
-    isAuthenticated: auth?.isAuthenticated ?? null,
-    hasSessionClaims: Boolean(auth?.sessionClaims),
-    tokenType: auth?.tokenType ?? null,
-    reason: authDebug?.reason ?? null,
-    message: authDebug?.message ?? null,
-  };
   const claimsUserId =
     typeof auth?.sessionClaims?.userId === "string"
       ? auth.sessionClaims.userId
@@ -37,7 +24,6 @@ export async function requireAuth(
   const userId = claimsUserId ?? auth?.userId;
 
   if (!userId) {
-    req.log.warn(authDiagnostic, "Clerk authentication rejected");
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
