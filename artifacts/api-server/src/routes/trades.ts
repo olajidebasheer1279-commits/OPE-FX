@@ -268,11 +268,16 @@ router.patch("/trades/:id", requireAuth, async (req, res): Promise<void> => {
   // For non-USD cross pairs the client sends the exact MT5 risk amount.
   // Respect it instead of overwriting with the engine's approximate value.
   const patchBalance = toNumber(account.currentBalance);
+  const explicitRiskAmount = body.riskAmount;
   const finalRiskAmount =
-    body.riskAmount !== undefined ? body.riskAmount : metrics.riskAmount;
+    explicitRiskAmount !== undefined
+      ? explicitRiskAmount
+      : metrics.riskAmount;
   const finalRiskPercent =
-    body.riskAmount !== undefined && patchBalance > 0
-      ? (body.riskAmount / patchBalance) * 100
+    explicitRiskAmount !== undefined &&
+    explicitRiskAmount !== null &&
+    patchBalance > 0
+      ? (explicitRiskAmount / patchBalance) * 100
       : metrics.riskPercent;
 
   const previousPnl =
