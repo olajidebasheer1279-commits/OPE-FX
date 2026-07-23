@@ -1,0 +1,95 @@
+The OPE-FX project is already complete. This is NOT a rebuild or redesign.
+
+Fix ONLY the Trigger Name pipeline for the Alert system.
+
+Do NOT modify anything else:
+- Do NOT touch live monitoring
+- Do NOT touch providers (Finnhub, Twelve Data, Deriv, Kraken)
+- Do NOT touch APIs
+- Do NOT touch authentication
+- Do NOT touch dashboard
+- Do NOT touch database schema
+- Do NOT touch alert engine logic
+- Do NOT touch deployment
+- Do NOT change existing working features
+
+IMPORTANT:
+AUDUSD is ONLY an example.
+
+This fix must work dynamically for ALL market categories and ALL instruments, including but not limited to:
+• Forex
+• Synthetic Indices
+• Metals
+• Indices
+• Crypto
+• Stocks (if supported)
+
+Examples only:
+• EURUSD
+• GBPAUD
+• USDJPY
+• XAUUSD
+• BTCUSD
+• R_75
+• R_100
+• US30
+• NAS100
+
+The notification and Voice Assistant must ALWAYS use the actual Pair and Trigger Name from the alert that fired.
+
+Current issue:
+The Voice Assistant now works and alerts fire correctly, but every new notification still shows:
+
+PAIR • ALERT
+
+instead of using the Trigger Name selected when the alert was created.
+
+Expected result:
+
+PAIR • POI TRIGGER
+
+PAIR • ENTRY TRIGGER
+
+PAIR • CHOCH TRIGGER
+
+PAIR • BREAK OF STRUCTURE TRIGGER
+
+etc.
+
+The Trigger Name chosen in the Alert Menu must be saved with every new alert and flow through the entire notification pipeline.
+
+It must be used in:
+• Toast notification
+• Notification bell
+• Browser notification
+• Voice Assistant
+• Notification history
+
+Notification body must remain:
+
+Price Goes Above 0.69975
+
+Check your break
+
+(The note stays on its own line.)
+
+Voice Assistant must read exactly:
+
+"PAIR.
+Trigger Name.
+Basheer, check your chart."
+
+Examples:
+• "EURUSD. POI Trigger. Basheer, check your chart."
+• "R_75. Entry Trigger. Basheer, check your chart."
+• "XAUUSD. Break Of Structure Trigger. Basheer, check your chart."
+
+It must never say:
+• "PAIR Alert"
+• "PAIR X2"
+
+Old alerts created before this fix may continue showing "ALERT", but every newly created alert must use its selected Trigger Name everywhere.
+
+After fixing, create new test alerts from different market categories and verify the Trigger Name appears correctly in all five delivery channels.
+
+Fix ONLY this issue and leave every other part of OPE-FX unchanged.

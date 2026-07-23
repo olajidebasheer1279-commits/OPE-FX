@@ -139,6 +139,8 @@ router.post("/alerts", requireAuth, async (req, res): Promise<void> => {
         repeat: body.repeat,
         color: body.color,
         sound: body.sound,
+        triggerName: body.triggerName ?? null,
+        triggerNameCustom: body.triggerNameCustom ?? null,
       })
       .returning();
 
@@ -204,6 +206,7 @@ router.patch("/alerts/:id", requireAuth, async (req, res): Promise<void> => {
       return;
     }
 
+    await alertEngine.invalidateCache();
     res.json(serializeAlert(updated));
   } catch (err) {
     req.log.error({ err }, "Error updating alert");
