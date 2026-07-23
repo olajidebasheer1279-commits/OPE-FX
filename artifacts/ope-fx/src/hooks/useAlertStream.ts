@@ -337,7 +337,7 @@ export function useAlertStream() {
         // Determine trigger display name (fallback to "Alert")
         const triggerDisplay = data.triggerName ?? "Alert";
 
-        // Notification title: "GBPAUD • POI TRIGGER"
+        // Notification title: "<symbol> • <TRIGGER NAME>" — sourced from the SSE event, never hardcoded
         const notifTitle = `${data.symbol} • ${triggerDisplay.toUpperCase()}`;
 
         // Strip backend "Note: " label — show only the user's note text

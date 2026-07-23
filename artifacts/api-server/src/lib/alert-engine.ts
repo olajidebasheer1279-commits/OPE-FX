@@ -139,7 +139,7 @@ class AlertEngine {
       const conditionMessage = `${alert.symbol} ${condLabel} ${parseFloat(alert.targetValue).toFixed(5)}`;
       const message = alert.message ?? conditionMessage;
 
-      // Notification title: "AUDUSD • POI TRIGGER"
+      // Notification title: "<symbol> • <TRIGGER NAME>" — always from the live alert record
       const notifTitle = triggerDisplayName
         ? `${alert.symbol} • ${triggerDisplayName.toUpperCase()}`
         : `${alert.symbol} • ALERT`;
