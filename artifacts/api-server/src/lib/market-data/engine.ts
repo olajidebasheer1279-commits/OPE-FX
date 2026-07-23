@@ -29,6 +29,7 @@ import { DerivProvider } from "./providers/deriv.js";
 import { TwelveDataProvider } from "./providers/twelve-data.js";
 import { KrakenProvider } from "./providers/kraken.js";
 import { FinnhubProvider } from "./providers/finnhub.js";
+import { DerivForexProvider } from "./providers/deriv-forex.js";
 
 class MarketDataEngine {
   /**
@@ -41,7 +42,8 @@ class MarketDataEngine {
     new DerivProvider(),       // Synthetic indices (R_75, BOOM1000, CRASH500 …)
     new TwelveDataProvider(),  // Equity indices    (US30, NAS100, SPX500 …)
     new KrakenProvider(),      // Crypto            (BTCUSD, ETHUSD, SOLUSD …)
-    new FinnhubProvider(),     // Forex + Metals    (EURUSD, XAUUSD …)
+    new FinnhubProvider(),     // Forex + Metals    (EURUSD, XAUUSD …) — preferred when API key present
+    new DerivForexProvider(),  // Forex + Metals fallback via Deriv public WS (no key required)
   ];
 
   /** Last price received per OPE-FX symbol (uppercase key). */

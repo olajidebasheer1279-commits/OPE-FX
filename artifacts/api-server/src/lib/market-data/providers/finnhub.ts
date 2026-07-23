@@ -40,6 +40,9 @@ export class FinnhubProvider extends BaseProvider {
   // ── Routing contract ───────────────────────────────────────────────────────
 
   canHandle(opeFxSymbol: string): boolean {
+    // When no API key is set this provider cannot connect; yield to the
+    // DerivForexProvider fallback so that Forex alerts still fire.
+    if (!this.apiKey) return false;
     const s = opeFxSymbol.toUpperCase().replace("/", "");
     // Must be exactly 6 letters (e.g. EURUSD, XAUUSD) — no digits, no underscores
     if (s.length !== 6 || !/^[A-Z]{6}$/.test(s)) return false;
