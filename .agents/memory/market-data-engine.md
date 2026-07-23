@@ -58,3 +58,10 @@ Twelve Data’s WebSocket accepts the configured key, but the mapped equity-inde
 **Why:** A live socket handshake alone does not prove subscription availability; representative subscription probes showed explicit rejection for the configured index symbols.
 
 **How to apply:** When restoring monitoring, verify at least one symbol per provider and distinguish connection success from subscription/tick success.
+
+## Credential naming compatibility
+The Twelve Data provider accepts both `TWELVE_DATA_API_KEY` (documented name) and `TWELVEDATA_API_KEY` (compact deployment name).
+
+**Why:** Existing Replit setups may already store the compact name, while the provider documentation uses the underscored name.
+
+**How to apply:** Check both names before requesting another Twelve Data credential or changing an existing deployment.

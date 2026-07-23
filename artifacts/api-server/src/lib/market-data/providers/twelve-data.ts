@@ -27,7 +27,12 @@ export class TwelveDataProvider extends BaseProvider {
 
   constructor() {
     super();
-    this.apiKey = process.env["TWELVE_DATA_API_KEY"] ?? "";
+    // Support both the documented provider name and the compact name used by
+    // existing deployments.
+    this.apiKey =
+      process.env["TWELVE_DATA_API_KEY"] ??
+      process.env["TWELVEDATA_API_KEY"] ??
+      "";
   }
 
   // ── Routing contract ───────────────────────────────────────────────────────
