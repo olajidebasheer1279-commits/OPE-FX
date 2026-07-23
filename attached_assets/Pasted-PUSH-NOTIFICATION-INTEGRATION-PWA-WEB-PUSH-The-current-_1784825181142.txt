@@ -1,0 +1,259 @@
+PUSH NOTIFICATION INTEGRATION (PWA WEB PUSH)
+
+The current OPE-FX alert engine is COMPLETE and STABLE.
+
+GitHub backup has already been created.
+
+DO NOT modify or redesign anything that already works.
+
+DO NOT touch:
+• Live Monitoring
+• Alert Engine
+• Provider Architecture
+• SSE
+• Voice Assistant
+• Dashboard
+• Database Schema
+• Authentication
+• Market APIs
+• Notification Bell
+• Alert History
+• Existing UI
+
+The ONLY goal is to add native Web Push Notifications for the deployed Render version.
+
+==================================================
+
+OBJECTIVE
+
+When Render detects an alert:
+
+Backend
+↓
+
+Alert Engine
+↓
+
+Database
+↓
+
+Push Notification
+
+↓
+
+iPhone / Android notification
+(even when OPE-FX is not open)
+
+==================================================
+
+Requirements
+
+Implement proper PWA Web Push.
+
+Use the browser Push API.
+
+Use a Service Worker.
+
+Use the Web Push protocol.
+
+Generate and use VAPID keys.
+
+Store push subscriptions securely in the database.
+
+When a user enables notifications:
+
+• Register Service Worker
+• Request Notification Permission
+• Subscribe the device
+• Save subscription in the backend
+
+==================================================
+
+Backend
+
+When any alert fires:
+
+DO NOT change the alert engine.
+
+Simply extend the existing pipeline.
+
+Current pipeline:
+
+Market
+↓
+
+Alert Engine
+↓
+
+Database
+↓
+
+Toast
+↓
+
+Voice
+↓
+
+Notification Bell
+
+Extend it to:
+
+Market
+↓
+
+Alert Engine
+↓
+
+Database
+↓
+
+Push Notification Service
+↓
+
+All subscribed devices
+
+==================================================
+
+Notification Content
+
+Title:
+
+GBPUSD • POI TRIGGER
+
+Body:
+
+Price Goes Above 1.91027
+
+Wait for confirmation
+
+Do NOT include:
+
+Alert:
+Note:
+Extra formatting
+
+Use the exact Trigger Name saved with the alert.
+
+If Trigger Name is missing on legacy alerts ONLY, fall back to:
+
+ALERT
+
+==================================================
+
+Requirements
+
+Support every market category automatically.
+
+Forex
+
+Metals
+
+Indices
+
+Crypto
+
+Synthetic Indices
+
+Stocks
+
+No instrument names may be hardcoded.
+
+The system must always use:
+
+alert.symbol
+
+alert.triggerName
+
+alert.condition
+
+alert.price
+
+alert.note
+
+==================================================
+
+Render
+
+The monitoring already runs 24/7.
+
+Do NOT move monitoring into React.
+
+Push notifications must originate from Render.
+
+The backend must continue sending pushes even if:
+
+Safari is closed
+
+React is closed
+
+No browser tab is open
+
+Monitoring must remain entirely backend-driven.
+
+==================================================
+
+PWA
+
+Verify:
+
+manifest.json
+
+Service Worker
+
+Push Manager
+
+Notification Permission
+
+Offline support remains intact
+
+Home Screen installation remains intact
+
+==================================================
+
+Testing
+
+Verify:
+
+1.
+Create an alert.
+
+2.
+Allow notifications.
+
+3.
+Subscribe device.
+
+4.
+Alert fires.
+
+5.
+Push notification is received.
+
+6.
+Database history still records the alert.
+
+7.
+Notification Bell still records the alert.
+
+8.
+Voice Assistant still works when the app is open.
+
+==================================================
+
+Do NOT redesign anything.
+
+Do NOT remove existing functionality.
+
+Do NOT change any provider integration.
+
+Only add Web Push Notifications to the existing alert pipeline.
+
+When complete, provide:
+
+• Files created
+• Files modified
+• Database additions
+• VAPID configuration
+• Environment variables required on Render
+• Exact deployment steps
+• Exact testing steps for iPhone Home Screen (PWA)
