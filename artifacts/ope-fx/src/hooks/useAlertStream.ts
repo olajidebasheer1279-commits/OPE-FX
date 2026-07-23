@@ -231,6 +231,7 @@ function ensureVoicesLoaded() {
 }
 
 function speakAlert(
+  symbol: string,
   triggerDisplayName: string,
   spokenName: string,
   volume: number,
@@ -239,20 +240,33 @@ function speakAlert(
 ) {
   if (typeof speechSynthesis === "undefined") return;
   speechSynthesis.cancel(); // clear any queued speech
-  const text = `${triggerDisplayName}. ${spokenName}, Check your chart.`;
+  const text = `${symbol}. ${triggerDisplayName}. ${spokenName}, check your chart.`;
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.volume = Math.max(0, Math.min(1, volume));
   utterance.rate = Math.max(0.5, Math.min(2, speed));
+
+  const doSpeak = (voices: SpeechSynthesisVoice[]) => {
+    if (voices.length > 0) {
+      const preferred = voices.find((v) =>
+        gender === "male"
+          ? /male|man|guy/i.test(v.name)
+          : /female|woman|girl/i.test(v.name),
+      );
+      utterance.voice = preferred ?? voices[0] ?? null;
+    }
+    speechSynthesis.speak(utterance);
+  };
+
   const voices = speechSynthesis.getVoices();
   if (voices.length > 0) {
-    const preferred = voices.find((v) =>
-      gender === "male"
-        ? /male|man|guy/i.test(v.name)
-        : /female|woman|girl/i.test(v.name),
-    );
-    utterance.voice = preferred ?? voices[0];
+    doSpeak(voices);
+  } else {
+    // Chrome loads voices asynchronously — wait for them
+    speechSynthesis.onvoiceschanged = () => {
+      speechSynthesis.onvoiceschanged = null;
+      doSpeak(speechSynthesis.getVoices());
+    };
   }
-  speechSynthesis.speak(utterance);
 }
 
 // ── Hook ─────────────────────────────────────────────────────────────────────
@@ -295,8 +309,14 @@ export function useAlertStream() {
         const effectiveSound =
           data.sound && data.sound !== "none" ? data.sound : settings.soundName;
 
-        // Determine trigger display name (fallback to symbol)
-        const triggerDisplay = data.triggerName ?? `🔔 ${data.symbol} Alert`;
+        // Determine trigger display name (fallback to "Alert")
+        const triggerDisplay = data.triggerName ?? "Alert";
+
+        // Notification title: "GBPAUD • POI TRIGGER"
+        const notifTitle = `${data.symbol} • ${triggerDisplay.toUpperCase()}`;
+
+        // Strip backend "Note: " label — show only the user's note text
+        const notifBody = data.message.replace(/\nNote: /g, "\n");
 
         // 1. Invalidate notification bell
         queryClient.invalidateQueries({
@@ -307,8 +327,8 @@ export function useAlertStream() {
         if (settings.toastNotifications) {
           const isUrgent = settings.urgentMode;
           toast({
-            title: triggerDisplay,
-            description: data.message,
+            title: notifTitle,
+            description: notifBody,
             duration: isUrgent ? 0 : 8000, // persistent if urgent
             style: { borderLeft: `4px solid ${data.color}` },
           });
@@ -328,6 +348,7 @@ export function useAlertStream() {
         // 4. Voice assistant
         if (settings.voiceEnabled) {
           speakAlert(
+            data.symbol,
             data.triggerName ?? data.symbol,
             settings.spokenName,
             settings.voiceVolume,
@@ -342,8 +363,8 @@ export function useAlertStream() {
           typeof Notification !== "undefined" &&
           Notification.permission === "granted"
         ) {
-          new Notification(triggerDisplay, {
-            body: data.message,
+          new Notification(notifTitle, {
+            body: notifBody,
             tag: `alert-${data.alertId}`,
           });
         }
@@ -357,6 +378,7 @@ export function useAlertStream() {
         if (settings.urgentMode && settings.voiceEnabled) {
           const urgentId = setInterval(() => {
             speakAlert(
+              data.symbol,
               data.triggerName ?? data.symbol,
               settings.spokenName,
               settings.voiceVolume,

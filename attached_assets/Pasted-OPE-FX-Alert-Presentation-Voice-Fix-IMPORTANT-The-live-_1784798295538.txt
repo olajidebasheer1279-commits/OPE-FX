@@ -1,0 +1,158 @@
+OPE-FX — Alert Presentation & Voice Fix
+
+IMPORTANT
+
+The live monitoring and alert engine are already working correctly.
+
+Do NOT modify:
+- Live Monitoring
+- Market Providers
+- Provider Architecture
+- Alert Engine
+- Database
+- Dashboard
+- Trade Log
+- Journal
+- Reviews
+- Rules
+- Authentication
+- Backend APIs
+
+Only fix the Alert Presentation Layer and Voice Assistant.
+
+------------------------------------------------------------
+
+1. Notification Title
+
+Replace the current notification title.
+
+Current:
+
+GBPAUD Alert
+
+New format:
+
+GBPAUD • POI TRIGGER
+
+The title must always follow:
+
+[PAIR] • [TRIGGER NAME]
+
+Examples:
+
+GBPAUD • POI TRIGGER
+
+EURUSD • BREAK OF STRUCTURE TRIGGER
+
+USDJPY • CHOCH TRIGGER
+
+XAUUSD • LIQUIDITY SWEEP TRIGGER
+
+BTCUSD • CUSTOM TRIGGER
+
+------------------------------------------------------------
+
+2. Notification Body
+
+Keep this format:
+
+Price Goes Above 1.91027
+
+Wait for confirmation
+
+or
+
+Price Goes Below 167.64
+
+1 Hour Order Block Zone
+
+Do NOT display:
+
+"Note:"
+
+Only display the user's note.
+
+------------------------------------------------------------
+
+3. Restore Voice Assistant
+
+The Voice Assistant is currently not speaking.
+
+Restore it.
+
+When an alert fires it must announce in this exact order:
+
+PAIR → TRIGGER NAME → USER NAME → ACTION
+
+Example:
+
+"GBPAUD. POI Trigger. Basheer, check your chart."
+
+Example:
+
+"EURUSD. Break of Structure Trigger. Basheer, check your chart."
+
+Example:
+
+"XAUUSD. Liquidity Sweep Trigger. Basheer, check your chart."
+
+If the user changes the spoken name, use the configured name instead.
+
+------------------------------------------------------------
+
+4. Voice Rules
+
+The Voice Assistant must NOT read:
+
+- Trigger Type
+  (Price Goes Above / Price Goes Below / Price Equals)
+
+- Price Level
+
+- User Note
+
+Those remain visible only inside the notification.
+
+------------------------------------------------------------
+
+5. Testing
+
+Trigger one live alert.
+
+Verify:
+
+✓ Notification title shows:
+
+PAIR • TRIGGER NAME
+
+✓ Notification body shows:
+
+Trigger Type + Price
+
+User Note
+
+✓ Voice Assistant announces:
+
+"GBPAUD. POI Trigger. Basheer, check your chart."
+
+(or the appropriate pair and trigger)
+
+✓ Voice plays correctly.
+
+✓ Alert fires only once unless Repeat Mode is enabled.
+
+When these items are working, stop immediately and wait for my testing.
+
+------------------------------------------------------------
+
+FINAL INSTRUCTION
+
+Do NOT modify any completed feature.
+
+Only repair:
+
+- Notification title format
+
+- Voice Assistant
+
+Everything else is already working and must remain unchanged.
