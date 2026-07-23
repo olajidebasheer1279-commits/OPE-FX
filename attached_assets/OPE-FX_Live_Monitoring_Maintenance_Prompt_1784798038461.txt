@@ -1,0 +1,70 @@
+OPE-FX Maintenance Session (Live Monitoring Only)
+
+IMPORTANT:
+This is NOT a development session.
+
+OPE-FX is already complete and pushed to GitHub.
+This session is ONLY to restore live market monitoring on the new Replit environment.
+
+Do NOT analyze the whole project.
+Do NOT rebuild completed features.
+Do NOT redesign the UI.
+Do NOT refactor working systems.
+Do NOT inspect unrelated files.
+
+Only restore the existing live provider connections.
+
+ENVIRONMENT INFORMATION
+
+- FINNHUB_API_KEY is available.
+- TWELVE_DATA_API_KEY is available.
+- Deriv credentials are available.
+
+IMPORTANT ABOUT DERIV
+
+Do NOT assume the Deriv App ID must be a 5–6 digit numeric value.
+
+The current Deriv Developer platform may provide OAuth-based application credentials instead of the older numeric App IDs.
+
+Do NOT waste credits explaining the old numeric App ID system.
+
+First inspect the existing Deriv provider implementation and determine which authentication format it actually expects.
+
+If the provider expects the legacy numeric app_id, explain briefly why before changing anything.
+
+If the provider already supports OAuth or can support it with a minimal modification, implement that instead.
+
+Do NOT repeatedly ask me for credentials I already have.
+
+EXISTING PROVIDERS
+
+- Finnhub → Forex & Metals
+- Twelve Data → Indices
+- Kraken → Crypto
+- Deriv → Synthetic Indices and Forex fallback
+
+ONLY PERFORM THESE TASKS
+
+1. Restore provider connections.
+2. Verify WebSocket connections.
+3. Verify subscriptions.
+4. Verify live ticks are arriving.
+5. Verify alerts fire correctly.
+
+DO NOT MODIFY
+
+- Dashboard
+- Trade Log
+- Journal
+- Rules
+- Reviews
+- Database
+- Alert Engine
+- Notification System
+- Provider Architecture
+- UI
+- Deployment
+
+The architecture is already complete.
+
+When live monitoring is restored and alerts fire correctly, STOP and wait for my next instruction.
