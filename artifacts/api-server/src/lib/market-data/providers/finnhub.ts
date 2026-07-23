@@ -1,31 +1,34 @@
 /**
  * Finnhub WebSocket provider — Forex & Metals.
- * Free tier. Requires FINNHUB_API_KEY (sign up at finnhub.io — free).
  *
- * Symbols are sent as OANDA:EUR_USD, OANDA:XAU_USD, etc.
- * Finnhub streams "trade" events; we construct a synthetic bid/ask
- * by treating the last trade price as mid and applying a 1-pip spread.
+ * canHandle: any 6-letter OPE-FX symbol whose base is not a crypto currency.
+ * This covers all major and minor forex pairs (EURUSD, GBPJPY, …) and
+ * precious metals (XAUUSD, XAGUSD, …).
+ *
+ * To replace this provider: implement IMarketProvider, cover the same
+ * canHandle() contract, and swap the entry in engine.ts. Nothing else changes.
+ *
+ * Feed: OANDA via Finnhub WebSocket (wss://ws.finnhub.io?token={key})
+ * Auth: FINNHUB_API_KEY environment variable (free plan at finnhub.io)
  */
 import WebSocket from "ws";
 import { BaseProvider } from "./base.js";
-import { finnhubToOpeFx } from "../symbol-map.js";
-import type { ProviderName } from "../types.js";
+import {
+  CRYPTO_BASES,
+  toFinnhubSymbol,
+  fromFinnhubSymbol,
+} from "../symbol-data.js";
 
 const WS_BASE = "wss://ws.finnhub.io";
 
-// Approximate pip sizes for spread estimation
-const PIP_SIZE: Record<string, number> = {
-  JPY: 0.01,
-  default: 0.00001,
-};
-
-function halfSpread(providerSymbol: string): number {
-  const quote = providerSymbol.slice(-3);
-  return (PIP_SIZE[quote] ?? PIP_SIZE["default"]) * 0.5;
+// Approximate half-spread in quote currency units (used to synthesise bid/ask
+// from trade price, since Finnhub streams trades, not quotes).
+function halfSpread(quoteCode: string): number {
+  return quoteCode === "JPY" ? 0.005 : 0.000005;
 }
 
 export class FinnhubProvider extends BaseProvider {
-  readonly name: ProviderName = "finnhub";
+  readonly name = "finnhub";
   private ws: WebSocket | null = null;
   private readonly apiKey: string;
 
@@ -33,6 +36,18 @@ export class FinnhubProvider extends BaseProvider {
     super();
     this.apiKey = process.env["FINNHUB_API_KEY"] ?? "";
   }
+
+  // ── Routing contract ───────────────────────────────────────────────────────
+
+  canHandle(opeFxSymbol: string): boolean {
+    const s = opeFxSymbol.toUpperCase().replace("/", "");
+    // Must be exactly 6 letters (e.g. EURUSD, XAUUSD) — no digits, no underscores
+    if (s.length !== 6 || !/^[A-Z]{6}$/.test(s)) return false;
+    // Exclude crypto bases (BTCUSD, ETHUSD, etc.) — those go to Kraken
+    return !CRYPTO_BASES.has(s.slice(0, 3));
+  }
+
+  // ── Connection lifecycle ───────────────────────────────────────────────────
 
   protected override requiresApiKey(): boolean { return true; }
   protected override hasApiKey(): boolean { return this.apiKey.length > 0; }
@@ -49,7 +64,6 @@ export class FinnhubProvider extends BaseProvider {
 
     ws.on("open", () => {
       this.onConnected();
-      // Re-subscribe to all tracked symbols
       for (const provSym of this.symbolMap.keys()) {
         this.sendSubscribe(provSym);
       }
@@ -58,12 +72,11 @@ export class FinnhubProvider extends BaseProvider {
     ws.on("message", (raw) => {
       try {
         const msg = JSON.parse(raw.toString()) as Record<string, unknown>;
-
         if (msg["type"] === "trade") {
           const trades = msg["data"] as Array<Record<string, unknown>> | undefined;
           if (!Array.isArray(trades)) return;
 
-          // Aggregate: use the last trade for each symbol
+          // Aggregate: use the last trade price per symbol
           const latest = new Map<string, number>();
           for (const t of trades) {
             const s = t["s"] as string;
@@ -72,25 +85,23 @@ export class FinnhubProvider extends BaseProvider {
           }
 
           for (const [provSym, price] of latest) {
-            const hs = halfSpread(provSym);
-            const opeSym = this.symbolMap.get(provSym) ?? finnhubToOpeFx(provSym);
+            const quote = provSym.slice(-3); // e.g. "USD" from "OANDA:EUR_USD"
+            const hs = halfSpread(quote);
+            const opeSym = this.symbolMap.get(provSym) ?? fromFinnhubSymbol(provSym);
             this.emit({
               symbol: opeSym,
               bid: price - hs,
               ask: price + hs,
               mid: price,
               timestamp: Date.now(),
-              provider: "finnhub",
+              provider: this.name,
             });
           }
         }
-
         if (msg["type"] === "error") {
           this.onError(new Error(String(msg["msg"] ?? "Finnhub error")));
         }
-      } catch {
-        // ignore
-      }
+      } catch { /* ignore malformed frames */ }
     });
 
     ws.on("close", () => {
@@ -99,9 +110,7 @@ export class FinnhubProvider extends BaseProvider {
       this.onDisconnected("stream closed");
     });
 
-    ws.on("error", (err) => {
-      this.onError(err);
-    });
+    ws.on("error", (err) => { this.onError(err); });
   }
 
   disconnect(): void {
@@ -111,24 +120,20 @@ export class FinnhubProvider extends BaseProvider {
     this._connected = false;
   }
 
-  subscribe(opeFxSymbol: string): void {
-    const upper = opeFxSymbol.toUpperCase().replace("/", "");
-    if (upper.length !== 6) return;
-    const provSym = `OANDA:${upper.slice(0, 3)}_${upper.slice(3)}`;
-    if (this.symbolMap.has(provSym)) return;
-    this.symbolMap.set(provSym, opeFxSymbol);
+  // ── Subscription ──────────────────────────────────────────────────────────
 
+  subscribe(opeFxSymbol: string): void {
+    const provSym = toFinnhubSymbol(opeFxSymbol);
+    if (this.symbolMap.has(provSym)) return;
+    this.symbolMap.set(provSym, opeFxSymbol.toUpperCase().replace("/", ""));
     if (this._connected && this.ws?.readyState === WebSocket.OPEN) {
       this.sendSubscribe(provSym);
     }
   }
 
   unsubscribe(opeFxSymbol: string): void {
-    const upper = opeFxSymbol.toUpperCase().replace("/", "");
-    if (upper.length !== 6) return;
-    const provSym = `OANDA:${upper.slice(0, 3)}_${upper.slice(3)}`;
+    const provSym = toFinnhubSymbol(opeFxSymbol);
     this.symbolMap.delete(provSym);
-
     if (this._connected && this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify({ type: "unsubscribe", symbol: provSym }));
     }

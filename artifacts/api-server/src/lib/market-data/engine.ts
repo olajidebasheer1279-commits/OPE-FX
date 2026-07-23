@@ -1,71 +1,76 @@
 /**
- * MarketDataEngine — manages all price providers, handles symbol→provider
- * routing, and maintains a last-known price cache.
+ * MarketDataEngine — orchestrates all market data providers.
  *
- * Startup:
- *   1. connect() all providers
- *   2. Load active alert symbols from DB → subscribe each to its provider
- *   3. Refresh subscriptions every 30 s
+ * The engine knows nothing about specific providers. It holds an ordered list
+ * of IMarketProvider instances and routes each OPE-FX symbol to the first
+ * provider whose canHandle() returns true.
+ *
+ * ── To replace a provider ────────────────────────────────────────────────────
+ *   1. Create a new class implementing IMarketProvider (or extending BaseProvider).
+ *   2. Swap the entry in the `providers` array below.
+ *   3. Done — the alert engine, routes, and frontend are unaffected.
+ *
+ * ── To add a new asset class ─────────────────────────────────────────────────
+ *   1. Add symbol data to symbol-data.ts.
+ *   2. Create a new provider class with a canHandle() that covers the new symbols.
+ *   3. Append it to the `providers` array below.
+ *   4. Done.
+ * ─────────────────────────────────────────────────────────────────────────────
  */
 import { eq } from "drizzle-orm";
 import { db, alertsTable } from "@workspace/db";
 import { logger } from "../logger.js";
-import { classifySymbol } from "./symbol-map.js";
-import { KrakenProvider } from "./providers/kraken.js";
+import type { IMarketProvider, PriceHandler, PriceUpdate, ProviderStatus } from "./types.js";
+
+// ── Provider implementations ──────────────────────────────────────────────────
+// This is the ONLY place in the codebase that imports concrete provider classes.
+// Every other module depends only on IMarketProvider.
 import { DerivProvider } from "./providers/deriv.js";
-import { FinnhubProvider } from "./providers/finnhub.js";
 import { TwelveDataProvider } from "./providers/twelve-data.js";
-import type { PriceHandler, PriceUpdate, ProviderStatus } from "./types.js";
+import { KrakenProvider } from "./providers/kraken.js";
+import { FinnhubProvider } from "./providers/finnhub.js";
 
 class MarketDataEngine {
-  private readonly providers = {
-    finnhub: new FinnhubProvider(),
-    kraken: new KrakenProvider(),
-    deriv: new DerivProvider(),
-    "twelve-data": new TwelveDataProvider(),
-  } as const;
+  /**
+   * Ordered provider list. The engine calls canHandle() on each in order and
+   * picks the first match. Order matters only when two providers could both
+   * return true for the same symbol — in the current set there is no overlap,
+   * so order is for documentation clarity only.
+   */
+  private readonly providers: IMarketProvider[] = [
+    new DerivProvider(),       // Synthetic indices (R_75, BOOM1000, CRASH500 …)
+    new TwelveDataProvider(),  // Equity indices    (US30, NAS100, SPX500 …)
+    new KrakenProvider(),      // Crypto            (BTCUSD, ETHUSD, SOLUSD …)
+    new FinnhubProvider(),     // Forex + Metals    (EURUSD, XAUUSD …)
+  ];
 
-  /** Last price received per OPE-FX symbol */
+  /** Last price received per OPE-FX symbol (uppercase key). */
   private priceCache = new Map<string, PriceUpdate>();
 
-  /** OPE-FX symbols currently subscribed */
+  /** OPE-FX symbols currently subscribed (uppercase). */
   private subscribedSymbols = new Set<string>();
 
   private refreshTimer: ReturnType<typeof setInterval> | null = null;
 
-  // ── Start / Stop ────────────────────────────────────────────────────────────
+  // ── Lifecycle ─────────────────────────────────────────────────────────────
 
   async start(): Promise<void> {
-    // Connect all providers
-    for (const p of Object.values(this.providers)) {
-      p.connect();
-    }
-
-    // Initial subscription load
+    for (const p of this.providers) p.connect();
     await this.refreshSubscriptions();
-
-    // Refresh every 30 s to pick up newly created / deleted alerts
-    this.refreshTimer = setInterval(() => {
-      void this.refreshSubscriptions();
-    }, 30_000);
+    this.refreshTimer = setInterval(() => void this.refreshSubscriptions(), 30_000);
   }
 
   stop(): void {
-    if (this.refreshTimer) {
-      clearInterval(this.refreshTimer);
-      this.refreshTimer = null;
-    }
-    for (const p of Object.values(this.providers)) {
-      p.disconnect();
-    }
+    if (this.refreshTimer) { clearInterval(this.refreshTimer); this.refreshTimer = null; }
+    for (const p of this.providers) p.disconnect();
   }
 
-  // ── Price handlers ──────────────────────────────────────────────────────────
+  // ── Price fan-out ─────────────────────────────────────────────────────────
 
   onPrice(handler: PriceHandler): void {
-    for (const p of Object.values(this.providers)) {
+    for (const p of this.providers) {
       p.onPrice((update) => {
-        this.priceCache.set(update.symbol, update);
+        this.priceCache.set(update.symbol.toUpperCase(), update);
         handler(update);
       });
     }
@@ -75,57 +80,45 @@ class MarketDataEngine {
     return this.priceCache.get(symbol.toUpperCase());
   }
 
-  // ── Subscription management ─────────────────────────────────────────────────
+  // ── Subscription management ───────────────────────────────────────────────
 
-  /** Ensure a single OPE-FX symbol is subscribed immediately. */
+  /** Immediately subscribe opeFxSymbol if not already subscribed. */
   ensureSubscribed(opeFxSymbol: string): void {
-    if (this.subscribedSymbols.has(opeFxSymbol.toUpperCase())) return;
-    this.subscribeSymbol(opeFxSymbol);
+    if (!this.subscribedSymbols.has(opeFxSymbol.toUpperCase())) {
+      this.subscribeSymbol(opeFxSymbol);
+    }
+  }
+
+  private findProvider(opeFxSymbol: string): IMarketProvider | undefined {
+    return this.providers.find((p) => p.canHandle(opeFxSymbol));
   }
 
   private subscribeSymbol(opeFxSymbol: string): void {
     const upper = opeFxSymbol.toUpperCase();
-    const classification = classifySymbol(upper);
-    if (!classification) {
-      logger.warn({ symbol: upper }, "Cannot classify symbol — skipping");
+    const provider = this.findProvider(upper);
+    if (!provider) {
+      logger.warn({ symbol: upper }, "No provider can handle symbol — skipping");
       return;
     }
-
-    const provider = this.providers[classification.provider];
-
-    // For Twelve Data, pass the provider symbol (e.g. "DJI" not "US30")
-    // For others, pass the OPE-FX symbol
-    const symbolToPass =
-      classification.provider === "twelve-data"
-        ? classification.providerSymbol
-        : upper;
-
-    provider.subscribe(symbolToPass);
+    // Always pass the OPE-FX symbol; each provider translates internally.
+    provider.subscribe(upper);
     this.subscribedSymbols.add(upper);
-
-    logger.debug(
-      { symbol: upper, provider: classification.provider },
-      "Subscribed to symbol",
-    );
+    logger.debug({ symbol: upper, provider: provider.name }, "Subscribed to symbol");
   }
 
   private unsubscribeSymbol(opeFxSymbol: string): void {
     const upper = opeFxSymbol.toUpperCase();
-    const classification = classifySymbol(upper);
-    if (!classification) return;
-
-    const provider = this.providers[classification.provider];
-    const symbolToPass =
-      classification.provider === "twelve-data"
-        ? classification.providerSymbol
-        : upper;
-
-    provider.unsubscribe(symbolToPass);
+    const provider = this.findProvider(upper);
+    if (provider) provider.unsubscribe(upper);
     this.subscribedSymbols.delete(upper);
     this.priceCache.delete(upper);
   }
 
-  /** Load all enabled price-type alerts from DB and sync subscriptions. */
+  /**
+   * Sync subscriptions with the current set of enabled alerts in the DB.
+   * Runs every 30 s and on startup. New alerts are picked up automatically;
+   * deleted or disabled alerts are unsubscribed.
+   */
   private async refreshSubscriptions(): Promise<void> {
     try {
       const rows = await db
@@ -136,31 +129,24 @@ class MarketDataEngine {
       const needed = new Set<string>(
         rows
           .map((r) => r.symbol.toUpperCase())
-          .filter((s) => !!classifySymbol(s)),
+          .filter((s) => !!this.findProvider(s)),
       );
 
-      // Subscribe to new symbols
       for (const sym of needed) {
-        if (!this.subscribedSymbols.has(sym)) {
-          this.subscribeSymbol(sym);
-        }
+        if (!this.subscribedSymbols.has(sym)) this.subscribeSymbol(sym);
       }
-
-      // Unsubscribe from symbols no longer needed
       for (const sym of this.subscribedSymbols) {
-        if (!needed.has(sym)) {
-          this.unsubscribeSymbol(sym);
-        }
+        if (!needed.has(sym)) this.unsubscribeSymbol(sym);
       }
     } catch (err) {
       logger.error({ err }, "Failed to refresh market subscriptions");
     }
   }
 
-  // ── Status ──────────────────────────────────────────────────────────────────
+  // ── Status ────────────────────────────────────────────────────────────────
 
   getStatuses(): ProviderStatus[] {
-    return Object.values(this.providers).map((p) => p.getStatus());
+    return this.providers.map((p) => p.getStatus());
   }
 
   getSubscribedSymbols(): string[] {

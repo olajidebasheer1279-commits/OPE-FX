@@ -1,26 +1,57 @@
-import type { PriceHandler, PriceUpdate, ProviderName, ProviderStatus } from "../types.js";
+/**
+ * BaseProvider — abstract base class for all market data providers.
+ *
+ * Implements IMarketProvider and handles the parts that are the same for every
+ * WebSocket-based provider:
+ *   • Price handler registration and dispatch
+ *   • Reconnect scheduling with exponential back-off (2 s → 60 s)
+ *   • Status reporting
+ *
+ * Subclasses must implement:
+ *   • name — display name shown in status endpoint
+ *   • canHandle(symbol) — declares which OPE-FX symbols this provider owns
+ *   • connect() / disconnect() — WebSocket lifecycle
+ *   • subscribe(opeFxSymbol) / unsubscribe(opeFxSymbol)
+ *
+ * The engine interacts only through IMarketProvider. BaseProvider is an
+ * implementation detail — providers may extend it or implement IMarketProvider
+ * directly.
+ */
+import type { IMarketProvider, PriceHandler, PriceUpdate, ProviderStatus } from "../types.js";
 import { logger } from "../../logger.js";
 
-export abstract class BaseProvider {
-  abstract readonly name: ProviderName;
+export abstract class BaseProvider implements IMarketProvider {
+  abstract readonly name: string;
+
+  /**
+   * Declare which OPE-FX symbols this provider can supply.
+   * The engine calls this to route subscriptions — never reference specific
+   * provider names in routing logic outside this method.
+   */
+  abstract canHandle(opeFxSymbol: string): boolean;
 
   protected handlers = new Set<PriceHandler>();
-  /** Map: providerSymbol → opeFxSymbol */
+  /**
+   * Internal symbol map: providerSymbol → opeFxSymbol.
+   * Subclasses manage this map; the size is exposed via getStatus().
+   */
   protected symbolMap = new Map<string, string>();
   protected _connected = false;
   protected _lastUpdateAt: number | null = null;
   protected _error: string | undefined;
 
-  // ── Reconnection bookkeeping ──────────────────────────────────────────────
+  // ── Reconnection ──────────────────────────────────────────────────────────
+
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-  private reconnectDelay = 2000;
+  private reconnectDelay = 2_000;
   private readonly maxReconnectDelay = 60_000;
 
   get connected(): boolean {
     return this._connected;
   }
 
-  /** Register a price handler (idempotent). */
+  // ── Price handler registration ────────────────────────────────────────────
+
   onPrice(handler: PriceHandler): void {
     this.handlers.add(handler);
   }
@@ -37,10 +68,12 @@ export abstract class BaseProvider {
     }
   }
 
+  // ── Connection lifecycle helpers ──────────────────────────────────────────
+
   protected onConnected(): void {
     this._connected = true;
     this._error = undefined;
-    this.reconnectDelay = 2000; // reset backoff
+    this.reconnectDelay = 2_000; // reset backoff
     logger.info({ provider: this.name }, "Provider connected");
   }
 
@@ -73,11 +106,14 @@ export abstract class BaseProvider {
     }
   }
 
+  // ── Abstract lifecycle ────────────────────────────────────────────────────
+
   abstract connect(): void;
   abstract disconnect(): void;
-  /** Subscribe to a symbol (OPE-FX canonical form). */
   abstract subscribe(opeFxSymbol: string): void;
   abstract unsubscribe(opeFxSymbol: string): void;
+
+  // ── Status ────────────────────────────────────────────────────────────────
 
   getStatus(): ProviderStatus {
     return {
@@ -91,6 +127,8 @@ export abstract class BaseProvider {
     };
   }
 
+  /** Override to return true when this provider needs an API key to connect. */
   protected requiresApiKey(): boolean { return false; }
+  /** Override to return false when the required key is absent from env. */
   protected hasApiKey(): boolean { return true; }
 }

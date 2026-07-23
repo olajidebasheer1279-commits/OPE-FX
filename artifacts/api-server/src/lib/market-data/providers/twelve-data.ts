@@ -1,19 +1,27 @@
 /**
- * Twelve Data WebSocket provider — Indices (US30, NAS100, SPX500, etc.).
- * Free tier allows up to 8 symbols per connection.
- * Requires TWELVE_DATA_API_KEY (sign up at twelvedata.com — free).
+ * Twelve Data WebSocket provider — Equity Indices.
  *
- * WebSocket endpoint: wss://ws.twelvedata.com/v1/quotes/price?apikey={key}
+ * canHandle: any symbol present in INDEX_TO_TWELVEDATA (US30, NAS100,
+ * SPX500, UK100, DE40, JP225, …).
+ *
+ * To replace this provider: implement IMarketProvider with the same canHandle()
+ * contract and swap the entry in engine.ts. Nothing else changes.
+ *
+ * Feed: Twelve Data WebSocket (wss://ws.twelvedata.com/v1/quotes/price)
+ * Auth: TWELVE_DATA_API_KEY (free plan: up to 8 symbols simultaneously)
  */
 import WebSocket from "ws";
 import { BaseProvider } from "./base.js";
-import { TWELVEDATA_TO_OPEFX } from "../symbol-map.js";
-import type { ProviderName } from "../types.js";
+import {
+  INDEX_TO_TWELVEDATA,
+  TWELVEDATA_TO_OPEFX,
+  toTwelveDataSymbol,
+} from "../symbol-data.js";
 
 const WS_BASE = "wss://ws.twelvedata.com/v1/quotes/price";
 
 export class TwelveDataProvider extends BaseProvider {
-  readonly name: ProviderName = "twelve-data";
+  readonly name = "twelve-data";
   private ws: WebSocket | null = null;
   private readonly apiKey: string;
 
@@ -21,6 +29,14 @@ export class TwelveDataProvider extends BaseProvider {
     super();
     this.apiKey = process.env["TWELVE_DATA_API_KEY"] ?? "";
   }
+
+  // ── Routing contract ───────────────────────────────────────────────────────
+
+  canHandle(opeFxSymbol: string): boolean {
+    return !!INDEX_TO_TWELVEDATA[opeFxSymbol.toUpperCase()];
+  }
+
+  // ── Connection lifecycle ───────────────────────────────────────────────────
 
   protected override requiresApiKey(): boolean { return true; }
   protected override hasApiKey(): boolean { return this.apiKey.length > 0; }
@@ -37,8 +53,8 @@ export class TwelveDataProvider extends BaseProvider {
 
     ws.on("open", () => {
       this.onConnected();
-      const syms = [...this.symbolMap.keys()];
-      if (syms.length > 0) this.sendSubscribe(syms);
+      const tdSyms = [...this.symbolMap.keys()];
+      if (tdSyms.length > 0) this.sendSubscribe(tdSyms);
     });
 
     ws.on("message", (raw) => {
@@ -46,14 +62,14 @@ export class TwelveDataProvider extends BaseProvider {
         const msg = JSON.parse(raw.toString()) as Record<string, unknown>;
 
         if (msg["event"] === "price") {
-          const provSym = msg["symbol"] as string;
+          const tdSym = msg["symbol"] as string;
           const price = parseFloat(String(msg["price"]));
-          if (!provSym || isNaN(price)) return;
+          if (!tdSym || isNaN(price)) return;
 
           const opeSym =
-            this.symbolMap.get(provSym) ??
-            TWELVEDATA_TO_OPEFX[provSym] ??
-            provSym;
+            this.symbolMap.get(tdSym) ??
+            TWELVEDATA_TO_OPEFX[tdSym] ??
+            tdSym;
 
           this.emit({
             symbol: opeSym,
@@ -61,20 +77,16 @@ export class TwelveDataProvider extends BaseProvider {
             ask: price,
             mid: price,
             timestamp: Date.now(),
-            provider: "twelve-data",
+            provider: this.name,
           });
         }
 
-        if (msg["event"] === "subscribe-status") {
-          // Log subscription acknowledgement (may contain errors per symbol)
-          const status = msg["status"] as string;
-          if (status === "error") {
-            this.onError(new Error(String(msg["message"] ?? "Twelve Data subscription error")));
-          }
+        if (msg["event"] === "subscribe-status" && msg["status"] === "error") {
+          this.onError(
+            new Error(String(msg["message"] ?? "Twelve Data subscription error")),
+          );
         }
-      } catch {
-        // ignore
-      }
+      } catch { /* ignore malformed frames */ }
     });
 
     ws.on("close", () => {
@@ -83,9 +95,7 @@ export class TwelveDataProvider extends BaseProvider {
       this.onDisconnected("stream closed");
     });
 
-    ws.on("error", (err) => {
-      this.onError(err);
-    });
+    ws.on("error", (err) => { this.onError(err); });
   }
 
   disconnect(): void {
@@ -95,42 +105,39 @@ export class TwelveDataProvider extends BaseProvider {
     this._connected = false;
   }
 
-  subscribe(opeFxSymbol: string): void {
-    // opeFxSymbol e.g. "US30"; providerSymbol e.g. "DJI"
-    // The engine already mapped to providerSymbol via classifySymbol
-    // but subscribe() receives the OPE-FX symbol — we need the provider symbol
-    // The engine stores the providerSymbol when it calls subscribe
-    // So here opeFxSymbol may actually be the providerSymbol already.
-    // We store both directions to be safe.
-    const provSym = opeFxSymbol; // engine passes providerSymbol here
-    if (this.symbolMap.has(provSym)) return;
-    this.symbolMap.set(provSym, opeFxSymbol);
+  // ── Subscription ──────────────────────────────────────────────────────────
 
+  /**
+   * Receives the OPE-FX symbol (e.g. "US30") and translates internally
+   * to the Twelve Data stream symbol ("DJI"). The engine always passes the
+   * OPE-FX symbol — translation is this provider's responsibility.
+   */
+  subscribe(opeFxSymbol: string): void {
+    const upper = opeFxSymbol.toUpperCase();
+    const tdSym = toTwelveDataSymbol(upper); // "US30" → "DJI"
+    if (this.symbolMap.has(tdSym)) return;
+    this.symbolMap.set(tdSym, upper); // key: tdSym, value: opeFxSymbol
     if (this._connected && this.ws?.readyState === WebSocket.OPEN) {
-      this.sendSubscribe([provSym]);
+      this.sendSubscribe([tdSym]);
     }
   }
 
   unsubscribe(opeFxSymbol: string): void {
-    const provSym = opeFxSymbol;
-    this.symbolMap.delete(provSym);
-
+    const tdSym = toTwelveDataSymbol(opeFxSymbol.toUpperCase());
+    this.symbolMap.delete(tdSym);
     if (this._connected && this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(
-        JSON.stringify({
-          action: "unsubscribe",
-          params: { symbols: provSym },
-        }),
+        JSON.stringify({ action: "unsubscribe", params: { symbols: tdSym } }),
       );
     }
   }
 
-  private sendSubscribe(provSyms: string[]): void {
+  private sendSubscribe(tdSyms: string[]): void {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
     this.ws.send(
       JSON.stringify({
         action: "subscribe",
-        params: { symbols: provSyms.join(",") },
+        params: { symbols: tdSyms.join(",") },
       }),
     );
   }
