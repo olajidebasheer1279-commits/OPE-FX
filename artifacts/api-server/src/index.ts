@@ -25,19 +25,20 @@ app.listen(port, async (err) => {
 
   logger.info({ port }, "Server listening");
 
-  // Start market data engine (connects WebSocket providers)
-  try {
-    await marketEngine.start();
-    logger.info("Market data engine started");
-  } catch (startErr) {
-    logger.error({ err: startErr }, "Market data engine failed to start");
-  }
-
-  // Start alert engine (subscribes to price ticks, evaluates conditions)
+  // Attach the alert tick handler before providers connect so startup
+  // snapshots/ticks cannot arrive before the Alert Engine is listening.
   try {
     await alertEngine.start();
     logger.info("Alert engine started");
   } catch (startErr) {
     logger.error({ err: startErr }, "Alert engine failed to start");
+  }
+
+  // Start market data providers only after the Alert Engine is attached.
+  try {
+    await marketEngine.start();
+    logger.info("Market data engine started");
+  } catch (startErr) {
+    logger.error({ err: startErr }, "Market data engine failed to start");
   }
 });

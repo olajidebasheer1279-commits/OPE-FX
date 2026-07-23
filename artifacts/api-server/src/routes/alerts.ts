@@ -144,9 +144,10 @@ router.post("/alerts", requireAuth, async (req, res): Promise<void> => {
       })
       .returning();
 
-    // Immediately subscribe to the symbol and refresh alert cache
+    // Refresh the evaluator before subscribing so an immediate provider tick
+    // cannot arrive while the newly-created alert is absent from its cache.
+    await alertEngine.invalidateCache();
     marketEngine.ensureSubscribed(alert.symbol);
-    void alertEngine.invalidateCache();
 
     res.status(201).json(serializeAlert(alert));
   } catch (err) {
@@ -207,6 +208,9 @@ router.patch("/alerts/:id", requireAuth, async (req, res): Promise<void> => {
     }
 
     await alertEngine.invalidateCache();
+    if (updated.isEnabled) {
+      marketEngine.ensureSubscribed(updated.symbol);
+    }
     res.json(serializeAlert(updated));
   } catch (err) {
     req.log.error({ err }, "Error updating alert");
@@ -248,7 +252,10 @@ router.patch(
         .where(eq(alertsTable.id, existing.id))
         .returning();
 
-      void alertEngine.invalidateCache();
+      await alertEngine.invalidateCache();
+      if (updated.isEnabled) {
+        marketEngine.ensureSubscribed(updated.symbol);
+      }
       res.json(serializeAlert(updated));
     } catch (err) {
       req.log.error({ err }, "Error toggling alert");
