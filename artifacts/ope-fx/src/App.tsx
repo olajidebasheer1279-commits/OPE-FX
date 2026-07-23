@@ -1,9 +1,11 @@
 import { useEffect, useRef } from "react";
-import { ClerkProvider, SignIn, SignUp, Show, useClerk } from '@clerk/react';
+import { ClerkProvider, SignIn, SignUp, Show, useAuth, useClerk } from '@clerk/react';
 import { publishableKeyFromHost } from '@clerk/react/internal';
 import { shadcn } from '@clerk/themes';
 import { Switch, Route, useLocation, Router as WouterRouter, Redirect } from 'wouter';
 import { queryClient } from "./lib/queryClient";
+import { setAuthTokenGetter } from "@workspace/api-client-react";
+import { setApiAuthTokenGetter } from "./lib/apiFetch";
 import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -155,6 +157,24 @@ function ClerkQueryClientCacheInvalidator() {
   return null;
 }
 
+function ClerkApiAuthBridge() {
+  const { getToken } = useAuth();
+
+  // Register during render so queries rendered below this bridge can
+  // authenticate their first request without waiting for an effect.
+  setAuthTokenGetter(getToken);
+  setApiAuthTokenGetter(getToken);
+
+  useEffect(() => {
+    return () => {
+      setAuthTokenGetter(null);
+      setApiAuthTokenGetter(null);
+    };
+  }, [getToken]);
+
+  return null;
+}
+
 function ClerkProviderWithRoutes() {
   const [, setLocation] = useLocation();
 
@@ -184,6 +204,7 @@ function ClerkProviderWithRoutes() {
     >
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
+          <ClerkApiAuthBridge />
           <ClerkQueryClientCacheInvalidator />
           <Switch>
             <Route path="/" component={HomeRedirect} />

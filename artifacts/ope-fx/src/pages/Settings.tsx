@@ -51,6 +51,7 @@ import {
   type Trade,
 } from "@workspace/api-client-react";
 import { queryClient } from "@/lib/queryClient";
+import { apiFetch } from "@/lib/apiFetch";
 
 const TIMEZONES = [
   "UTC",
@@ -502,7 +503,7 @@ function ExportTab() {
   // ---- Helpers ----
 
   async function fetchBackupData(): Promise<Record<string, unknown> | null> {
-    const res = await fetch("/api/backup");
+    const res = await apiFetch("/api/backup");
     if (!res.ok) throw new Error(`Server error: ${res.status}`);
     return res.json();
   }
@@ -626,7 +627,7 @@ function ExportTab() {
       }
 
       setRestoring(true);
-      const res = await fetch("/api/restore", {
+      const res = await apiFetch("/api/restore", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),

@@ -7,3 +7,4 @@
 - [API server zod imports](api-server-zod.md) — the api-server bundled build (esbuild) cannot resolve bare "zod" unless it's in the package's own dependencies; other routes use @workspace/api-zod schemas or do manual validation; add zod to api-server package.json when needed, then pnpm install.
 - [Orval mutation wrapper](orval-mutation-wrapper.md) — orval wraps mutation variables in `{ data: BodyType<T> }`, so calls must be `mutate({ data: { ...fields } })` not `mutate({ ...fields })` for PATCH/POST bodies.
 - [Market Data Engine](market-data-engine.md) — live price providers (Kraken/Deriv/Finnhub/TwelveData), alert engine, SSE push; Binance geo-blocked from Replit US servers.
+- [Preview auth verification](preview-auth-verification.md) — app-preview screenshots use a separate signed-out browser context, so they cannot validate an existing Clerk session.

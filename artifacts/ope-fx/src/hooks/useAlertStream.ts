@@ -16,6 +16,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { getListNotificationsQueryKey } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAlertSettings } from "./useAlertSettings";
+import { apiFetch } from "@/lib/apiFetch";
 
 // ── SSE event shape ───────────────────────────────────────────────────────────
 
@@ -286,9 +287,9 @@ export function useAlertStream() {
 
     const base = (import.meta.env.BASE_URL ?? "/").replace(/\/$/, "");
     const url = `${base}/api/market/stream`;
-    const es = new EventSource(url, { withCredentials: true });
+    const controller = new AbortController();
 
-    es.addEventListener("alert_fired", (e: MessageEvent) => {
+    const handleAlertEvent = (e: MessageEvent) => {
       try {
         const data = JSON.parse(e.data) as AlertFiredEvent;
 
@@ -370,12 +371,54 @@ export function useAlertStream() {
       } catch {
         // malformed event — ignore
       }
+    };
+
+    // EventSource cannot set an Authorization header. Use the shared API
+    // transport so this protected stream receives the current Clerk token.
+    void apiFetch(url, {
+      headers: { Accept: "text/event-stream" },
+      signal: controller.signal,
+    }).then(async (response) => {
+      if (!response.ok || !response.body) {
+        throw new Error(`Alert stream failed with HTTP ${response.status}`);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+
+          const frames = buffer.split("\n\n");
+          buffer = frames.pop() ?? "";
+          for (const frame of frames) {
+            const eventName =
+              frame.match(/(?:^|\n)event:\s*([^\n]+)/)?.[1]?.trim() ??
+              "message";
+            const data = frame
+              .split("\n")
+              .filter((line) => line.startsWith("data:"))
+              .map((line) => line.slice(5).trimStart())
+              .join("\n");
+
+            if (eventName === "alert_fired" && data) {
+              handleAlertEvent({ data } as MessageEvent);
+            }
+          }
+        }
+      } finally {
+        reader.releaseLock();
+      }
+    }).catch(() => {
+      // The stream is cancelled during unmount or can reconnect on remount.
     });
 
-    es.onerror = () => { /* EventSource auto-reconnects */ };
-
     return () => {
-      es.close();
+      controller.abort();
       // Clear any lingering urgent intervals
       urgentIntervals.current.forEach((id) => clearInterval(id));
       urgentIntervals.current.clear();

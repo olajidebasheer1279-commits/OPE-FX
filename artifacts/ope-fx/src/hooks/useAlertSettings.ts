@@ -4,6 +4,7 @@
  */
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@clerk/react";
+import { apiFetch } from "@/lib/apiFetch";
 
 export interface AlertSettings {
   voiceEnabled: boolean;
@@ -57,7 +58,7 @@ export function useAlertSettings() {
 
   useEffect(() => {
     if (!isSignedIn) { setLoading(false); return; }
-    fetch(`${base}/api/alert-settings`, { credentials: "include" })
+    apiFetch(`${base}/api/alert-settings`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => { if (data) setSettings({ ...DEFAULT_ALERT_SETTINGS, ...data }); })
       .catch(() => {/* keep defaults */})
@@ -70,7 +71,7 @@ export function useAlertSettings() {
       // Optimistic update
       setSettings((prev) => ({ ...prev, ...patch }));
       try {
-        const res = await fetch(`${base}/api/alert-settings`, {
+        const res = await apiFetch(`${base}/api/alert-settings`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           credentials: "include",

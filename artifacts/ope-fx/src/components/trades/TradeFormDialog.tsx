@@ -49,6 +49,7 @@ import {
   type Market,
 } from "@workspace/calc-engine";
 import { AlertMenuDialog, type LocalAlert, getTriggerDisplayName } from "./AlertMenuDialog";
+import { apiFetch } from "@/lib/apiFetch";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -143,7 +144,7 @@ interface BackendAlert {
 
 async function fetchAlertsForTrade(tradeId: number): Promise<LocalAlert[]> {
   try {
-    const res = await fetch("/api/alerts");
+    const res = await apiFetch("/api/alerts");
     if (!res.ok) return [];
     const data: BackendAlert[] = await res.json();
     return data
@@ -173,7 +174,7 @@ async function createAlertOnBackend(
   const alertName = alert.triggerName
     ? getTriggerDisplayName(alert)
     : `${symbol} ${alert.condition} ${alert.price}`;
-  await fetch("/api/alerts", {
+  await apiFetch("/api/alerts", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -202,7 +203,7 @@ async function updateAlertOnBackend(
   const alertName = alert.triggerName
     ? getTriggerDisplayName(alert)
     : `${symbol} ${alert.condition} ${alert.price}`;
-  await fetch(`/api/alerts/${id}`, {
+  await apiFetch(`/api/alerts/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -222,7 +223,7 @@ async function updateAlertOnBackend(
 }
 
 async function deleteAlertOnBackend(id: number): Promise<void> {
-  await fetch(`/api/alerts/${id}`, { method: "DELETE" });
+  await apiFetch(`/api/alerts/${id}`, { method: "DELETE" });
 }
 
 // ---------------------------------------------------------------------------
@@ -245,7 +246,7 @@ function ScreenshotField({
     setIsUploading(true);
     try {
       // Step 1 — request upload parameters from our API
-      const res = await fetch("/api/storage/uploads/request-url", {
+      const res = await apiFetch("/api/storage/uploads/request-url", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
