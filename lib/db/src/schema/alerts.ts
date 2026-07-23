@@ -36,8 +36,12 @@ export const alertsTable = pgTable("alerts", {
   repeat: boolean("repeat").notNull().default(true),
   // Hex colour swatch displayed in the UI (e.g. "#3b82f6")
   color: text("color").notNull().default("#3b82f6"),
-  // Audio cue: 'none' | 'chime' | 'beep' | 'bell'
+  // Audio cue: 'none' | 'chime' | 'beep' | 'bell' | 'emergency_alarm' | 'loud_bell' | 'siren' | 'air_horn' | 'loud_chime' | 'default_notification'
   sound: text("sound").notNull().default("none"),
+  // Trigger name label: 'poi' | 'bos' | 'choch' | 'liquidity_sweep' | 'entry' | 'take_profit' | 'stop_loss' | 'custom'
+  triggerName: text("trigger_name"),
+  // Free-text name used when triggerName = 'custom'
+  triggerNameCustom: text("trigger_name_custom"),
   isEnabled: boolean("is_enabled").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()

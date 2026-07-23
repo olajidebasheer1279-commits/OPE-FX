@@ -25,6 +25,25 @@ import type { PriceUpdate } from "./market-data/types.js";
 /** How many ms to wait before the same alert can fire again (repeat=true). */
 const COOLDOWN_MS = 60_000;
 
+/** Human-readable label for each trigger name key. */
+const TRIGGER_NAME_LABELS: Record<string, string> = {
+  poi: "POI Trigger",
+  bos: "Break of Structure Trigger",
+  choch: "CHOCH Trigger",
+  liquidity_sweep: "Liquidity Sweep Trigger",
+  entry: "Entry Trigger",
+  take_profit: "Take Profit Trigger",
+  stop_loss: "Stop Loss Trigger",
+};
+
+function getEffectiveTriggerName(alert: Alert): string | null {
+  if (!alert.triggerName) return null;
+  if (alert.triggerName === "custom") {
+    return alert.triggerNameCustom || "Custom Trigger";
+  }
+  return TRIGGER_NAME_LABELS[alert.triggerName] ?? null;
+}
+
 class AlertEngine {
   /** symbol (uppercase) → array of active alerts */
   private cache = new Map<string, Alert[]>();
@@ -115,22 +134,40 @@ class AlertEngine {
             ? "fell below"
             : "reached";
 
-      const defaultMessage = `${alert.symbol} ${condLabel} ${parseFloat(alert.targetValue).toFixed(5)}`;
-      const message = alert.message ?? defaultMessage;
+      const triggerDisplayName = getEffectiveTriggerName(alert);
+
+      const conditionMessage = `${alert.symbol} ${condLabel} ${parseFloat(alert.targetValue).toFixed(5)}`;
+      const message = alert.message ?? conditionMessage;
+
+      // Notification title: prefer trigger name, fall back to symbol
+      const notifTitle = triggerDisplayName
+        ? triggerDisplayName
+        : `🔔 Alert: ${alert.symbol}`;
+
+      // Notification body: "Trigger Type + Price Level", then note if present
+      const conditionStr =
+        alert.condition === "above"
+          ? "Price Goes Above"
+          : alert.condition === "below"
+            ? "Price Goes Below"
+            : "Price Equals";
+      const notifBody = alert.message
+        ? `${conditionStr} ${parseFloat(alert.targetValue).toFixed(5)}\nNote: ${alert.message}`
+        : `${conditionStr} ${parseFloat(alert.targetValue).toFixed(5)}`;
 
       // 1. Write alert history
       await db.insert(alertHistoryTable).values({
         alertId: alert.id,
         userId: alert.userId,
         triggerValue: triggerPrice.toString(),
-        message,
+        message: notifBody,
       });
 
       // 2. Create notification
       await db.insert(notificationsTable).values({
         userId: alert.userId,
-        title: `🔔 Alert: ${alert.symbol}`,
-        message,
+        title: notifTitle,
+        message: notifBody,
         type: "alert",
         isRead: false,
       });
@@ -162,9 +199,11 @@ class AlertEngine {
         condition: alert.condition,
         targetValue: parseFloat(alert.targetValue),
         price: triggerPrice,
-        message,
+        message: notifBody,
         sound: alert.sound,
         color: alert.color,
+        triggerName: triggerDisplayName,    // NEW: display label e.g. "POI Trigger"
+        triggerKey: alert.triggerName,      // NEW: raw key e.g. "poi"
       });
 
       logger.info(

@@ -1,0 +1,247 @@
+STEP 1 — Upgrade Alert Menu (Do this FIRST)
+
+The Alert Menu is opened only from a logged trade.
+
+It already inherits:
+• Trade ID
+• Market Category
+• Pair
+
+These are read-only.
+
+Do NOT ask the user to choose Market Category or Pair again.
+
+Display them at the top of the Alert Menu.
+
+Example:
+
+Trade ID: TR-00152
+
+Market: Forex
+
+Pair: EURUSD
+
+--------------------------------
+
+Keep Existing Trigger Type
+
+Keep the existing Trigger Type dropdown exactly as it is.
+
+This controls WHEN an alert fires.
+
+Options:
+• Price Goes Above
+• Price Goes Below
+• Price Equals
+
+Do NOT rename or remove it.
+
+--------------------------------
+
+Create Trigger Name
+
+Create a brand-new dropdown called:
+
+Trigger Name
+
+This controls WHAT the notification is called.
+
+Options:
+• POI Trigger
+• Break of Structure Trigger
+• CHOCH Trigger
+• Liquidity Sweep Trigger
+• Entry Trigger
+• Take Profit Trigger
+• Stop Loss Trigger
+• Custom Trigger
+
+If Custom Trigger is selected:
+
+Show a text box.
+
+User can type any trigger name.
+
+Examples:
+• London Session
+• News Trigger
+• Golden Entry
+• My Setup
+
+--------------------------------
+
+Notification Format
+
+Notification Title:
+Trigger Name
+
+Example:
+POI Trigger
+
+Notification Body:
+
+Trigger Type + Price Level
+
+Example:
+Price Goes Above 1.68886
+
+If a Note exists:
+
+Show the Note below.
+
+Example:
+
+Note:
+Check your confirmation entry.
+
+--------------------------------
+
+Voice Assistant
+
+Voice Assistant must announce only the Trigger Name.
+
+Example:
+
+"POI Trigger.
+Basheer,
+Check your chart."
+
+Example:
+
+"Break of Structure Trigger.
+Basheer,
+Check your chart."
+
+Do NOT read the price level or note aloud.
+
+Complete this Trigger Name feature before continuing.
+
+--------------------------------
+
+STEP 2 — Build Alert Settings
+
+Create an Alert Settings page inside the Alert Menu.
+
+Each user has their own saved settings.
+
+Voice Assistant
+• ON/OFF
+• Male Voice
+• Female Voice
+• Voice Volume
+• Speech Speed
+• Spoken Name
+
+Default:
+Basheer
+
+If changed to John:
+
+"POI Trigger.
+John,
+Check your chart."
+
+Alert Sounds
+
+• Emergency Alarm
+• Loud Bell
+• Siren
+• Air Horn
+• Loud Chime
+• Default Notification
+
+Each sound includes:
+• Preview Button
+• Volume Slider
+• Repeat:
+- Once
+- Twice
+- Three Times
+- Continuous Until Dismissed
+
+Default:
+Loud Bell
+
+Notifications
+
+• Browser Notifications
+• Toast Notifications
+• Phone Vibration (if supported)
+
+Alert Colors
+
+Default:
+Blue Alert 1
+Yellow Alert 2
+Red Alert 3
+
+Use these colors in:
+• Alert List
+• Active Alert
+• Notification History
+• Toast Notifications
+
+--------------------------------
+
+STEP 3 — Improve Notification Experience
+
+When an alert fires run simultaneously:
+• Browser Notification
+• Toast Notification
+• Selected Alert Sound
+• Voice Assistant
+• Phone Vibration (if supported)
+• Notification Bell Badge
+
+--------------------------------
+
+STEP 4 — Urgent Alert Mode
+
+Default: OFF
+
+When ON:
+Repeat sound according to Repeat Mode.
+Repeat Voice Assistant every 10 seconds until dismissed.
+
+--------------------------------
+
+STEP 5 — Mobile Compatibility
+
+Desktop
+Tablet
+Mobile
+
+Maintain existing OPE-FX design.
+
+--------------------------------
+
+STEP 6 — Testing
+
+Test:
+• Trigger Type
+• Trigger Name
+• Custom Trigger
+• Voice Assistant
+• Alert Sounds
+• Browser Notifications
+• Toast Notifications
+• Alert Colors
+• Repeat Mode
+• Urgent Alert Mode
+• Mobile Compatibility
+
+Fix bugs found.
+
+--------------------------------
+
+FINAL INSTRUCTION
+
+Do NOT rebuild Prompt 1, Prompt 2 or Prompt 3.
+
+Only extend the completed Alert System.
+
+When Prompt 4 is complete:
+
+STOP.
+
+Wait for my testing before making any additional changes.

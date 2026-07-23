@@ -48,7 +48,7 @@ import {
   getInstrumentSpec,
   type Market,
 } from "@workspace/calc-engine";
-import { AlertMenuDialog, type LocalAlert } from "./AlertMenuDialog";
+import { AlertMenuDialog, type LocalAlert, getTriggerDisplayName } from "./AlertMenuDialog";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -137,6 +137,8 @@ interface BackendAlert {
   repeat: boolean;
   color: string;
   sound: string;
+  triggerName: string | null;
+  triggerNameCustom: string | null;
 }
 
 async function fetchAlertsForTrade(tradeId: number): Promise<LocalAlert[]> {
@@ -155,6 +157,8 @@ async function fetchAlertsForTrade(tradeId: number): Promise<LocalAlert[]> {
         repeat: a.repeat,
         color: a.color ?? "#3b82f6",
         sound: (a.sound as LocalAlert["sound"]) ?? "none",
+        triggerName: (a.triggerName as LocalAlert["triggerName"]) ?? undefined,
+        triggerNameCustom: a.triggerNameCustom ?? "",
       }));
   } catch {
     return [];
@@ -166,11 +170,14 @@ async function createAlertOnBackend(
   tradeId: number,
   symbol: string,
 ): Promise<void> {
+  const alertName = alert.triggerName
+    ? getTriggerDisplayName(alert)
+    : `${symbol} ${alert.condition} ${alert.price}`;
   await fetch("/api/alerts", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      name: `${symbol} ${alert.condition} ${alert.price}`,
+      name: alertName,
       type: "price",
       condition: alert.condition,
       targetValue: parseFloat(alert.price),
@@ -181,6 +188,8 @@ async function createAlertOnBackend(
       repeat: alert.repeat,
       color: alert.color,
       sound: alert.sound,
+      triggerName: alert.triggerName ?? null,
+      triggerNameCustom: alert.triggerNameCustom ?? null,
     }),
   });
 }
@@ -190,11 +199,14 @@ async function updateAlertOnBackend(
   alert: LocalAlert,
   symbol: string,
 ): Promise<void> {
+  const alertName = alert.triggerName
+    ? getTriggerDisplayName(alert)
+    : `${symbol} ${alert.condition} ${alert.price}`;
   await fetch(`/api/alerts/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      name: `${symbol} ${alert.condition} ${alert.price}`,
+      name: alertName,
       condition: alert.condition,
       targetValue: parseFloat(alert.price),
       symbol: symbol.toUpperCase(),
@@ -203,6 +215,8 @@ async function updateAlertOnBackend(
       repeat: alert.repeat,
       color: alert.color,
       sound: alert.sound,
+      triggerName: alert.triggerName ?? null,
+      triggerNameCustom: alert.triggerNameCustom ?? null,
     }),
   });
 }
@@ -1109,6 +1123,7 @@ export function TradeFormDialog({
         onAlertsChange={setAlerts}
         symbol={watchedSymbol}
         market={watchedMarket}
+        tradeId={trade?.id}
       />
     </>
   );

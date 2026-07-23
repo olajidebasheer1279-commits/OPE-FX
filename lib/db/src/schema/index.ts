@@ -9,3 +9,4 @@ export * from "./uploads";
 export * from "./achievements";
 export * from "./alerts";
 export * from "./alert_history";
+export * from "./alert_settings";

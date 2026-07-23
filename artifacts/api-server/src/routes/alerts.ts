@@ -13,7 +13,29 @@ const router: IRouter = Router();
 const AlertType = z.enum(["price", "pnl", "drawdown", "rr", "custom"]);
 const AlertCondition = z.enum(["above", "below", "equals"]);
 
-const AlertSound = z.enum(["none", "chime", "beep", "bell"]);
+const AlertSound = z.enum([
+  "none",
+  "chime",
+  "beep",
+  "bell",
+  "emergency_alarm",
+  "loud_bell",
+  "siren",
+  "air_horn",
+  "loud_chime",
+  "default_notification",
+]);
+
+const TriggerName = z.enum([
+  "poi",
+  "bos",
+  "choch",
+  "liquidity_sweep",
+  "entry",
+  "take_profit",
+  "stop_loss",
+  "custom",
+]);
 
 const CreateAlertBody = z.object({
   name: z.string().min(1).max(255),
@@ -27,6 +49,8 @@ const CreateAlertBody = z.object({
   repeat: z.boolean().optional().default(true),
   color: z.string().max(20).optional().default("#3b82f6"),
   sound: AlertSound.optional().default("none"),
+  triggerName: TriggerName.optional(),
+  triggerNameCustom: z.string().max(100).optional(),
 });
 
 const UpdateAlertBody = z.object({
@@ -40,6 +64,8 @@ const UpdateAlertBody = z.object({
   repeat: z.boolean().optional(),
   color: z.string().max(20).optional(),
   sound: AlertSound.optional(),
+  triggerName: TriggerName.nullable().optional(),
+  triggerNameCustom: z.string().max(100).nullable().optional(),
 });
 
 const AlertIdParam = z.object({
@@ -63,6 +89,8 @@ function serializeAlert(a: typeof alertsTable.$inferSelect) {
     repeat: a.repeat,
     color: a.color,
     sound: a.sound,
+    triggerName: a.triggerName ?? null,
+    triggerNameCustom: a.triggerNameCustom ?? null,
     createdAt: a.createdAt.toISOString(),
     updatedAt: a.updatedAt.toISOString(),
   };
@@ -151,6 +179,8 @@ router.patch("/alerts/:id", requireAuth, async (req, res): Promise<void> => {
   if (body.repeat !== undefined) updateFields.repeat = body.repeat;
   if (body.color !== undefined) updateFields.color = body.color;
   if (body.sound !== undefined) updateFields.sound = body.sound;
+  if (body.triggerName !== undefined) updateFields.triggerName = body.triggerName ?? null;
+  if (body.triggerNameCustom !== undefined) updateFields.triggerNameCustom = body.triggerNameCustom ?? null;
 
   if (Object.keys(updateFields).length === 0) {
     res.status(400).json({ error: "No fields to update" });
