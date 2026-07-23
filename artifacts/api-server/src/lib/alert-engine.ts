@@ -139,12 +139,12 @@ class AlertEngine {
       const conditionMessage = `${alert.symbol} ${condLabel} ${parseFloat(alert.targetValue).toFixed(5)}`;
       const message = alert.message ?? conditionMessage;
 
-      // Notification title: prefer trigger name, fall back to symbol
+      // Notification title: "AUDUSD • POI TRIGGER"
       const notifTitle = triggerDisplayName
-        ? triggerDisplayName
-        : `🔔 Alert: ${alert.symbol}`;
+        ? `${alert.symbol} • ${triggerDisplayName.toUpperCase()}`
+        : `${alert.symbol} • ALERT`;
 
-      // Notification body: "Trigger Type + Price Level", then note if present
+      // Notification body: "Price Goes Above 1.91027\n<user note>" — no "Note:" label
       const conditionStr =
         alert.condition === "above"
           ? "Price Goes Above"
@@ -152,7 +152,7 @@ class AlertEngine {
             ? "Price Goes Below"
             : "Price Equals";
       const notifBody = alert.message
-        ? `${conditionStr} ${parseFloat(alert.targetValue).toFixed(5)}\nNote: ${alert.message}`
+        ? `${conditionStr} ${parseFloat(alert.targetValue).toFixed(5)}\n${alert.message}`
         : `${conditionStr} ${parseFloat(alert.targetValue).toFixed(5)}`;
 
       // 1. Write alert history

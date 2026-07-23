@@ -230,6 +230,24 @@ function ensureVoicesLoaded() {
   }
 }
 
+/**
+ * Pre-warm speechSynthesis with a silent utterance on first user gesture.
+ * Chrome blocks speech without prior user activation — this unlocks it.
+ */
+function prewarmSpeech() {
+  if (typeof speechSynthesis === "undefined") return;
+  const unlock = () => {
+    const u = new SpeechSynthesisUtterance(" ");
+    u.volume = 0;
+    u.rate = 2;
+    speechSynthesis.speak(u);
+    document.removeEventListener("click", unlock, true);
+    document.removeEventListener("keydown", unlock, true);
+  };
+  document.addEventListener("click", unlock, { capture: true, once: true });
+  document.addEventListener("keydown", unlock, { capture: true, once: true });
+}
+
 function speakAlert(
   symbol: string,
   triggerDisplayName: string,
@@ -239,32 +257,38 @@ function speakAlert(
   gender: "male" | "female",
 ) {
   if (typeof speechSynthesis === "undefined") return;
-  speechSynthesis.cancel(); // clear any queued speech
-  const text = `${symbol}. ${triggerDisplayName}. ${spokenName}, check your chart.`;
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.volume = Math.max(0, Math.min(1, volume));
-  utterance.rate = Math.max(0.5, Math.min(2, speed));
 
-  const doSpeak = (voices: SpeechSynthesisVoice[]) => {
+  const text = `${symbol}. ${triggerDisplayName}. ${spokenName}, check your chart.`;
+
+  const doSpeak = () => {
+    speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.volume = Math.max(0, Math.min(1, volume));
+    utterance.rate = Math.max(0.5, Math.min(2, speed));
+
+    const voices = speechSynthesis.getVoices();
     if (voices.length > 0) {
       const preferred = voices.find((v) =>
         gender === "male"
           ? /male|man|guy/i.test(v.name)
           : /female|woman|girl/i.test(v.name),
       );
-      utterance.voice = preferred ?? voices[0] ?? null;
+      // Only assign a voice if we found one — let browser pick default otherwise
+      if (preferred ?? voices[0]) {
+        utterance.voice = preferred ?? voices[0];
+      }
     }
     speechSynthesis.speak(utterance);
   };
 
   const voices = speechSynthesis.getVoices();
   if (voices.length > 0) {
-    doSpeak(voices);
+    doSpeak();
   } else {
-    // Chrome loads voices asynchronously — wait for them
+    // Chrome loads voices asynchronously on first call — wait for them
     speechSynthesis.onvoiceschanged = () => {
       speechSynthesis.onvoiceschanged = null;
-      doSpeak(speechSynthesis.getVoices());
+      doSpeak();
     };
   }
 }
@@ -293,6 +317,7 @@ export function useAlertStream() {
 
   useEffect(() => {
     ensureVoicesLoaded();
+    prewarmSpeech();
   }, []);
 
   useEffect(() => {

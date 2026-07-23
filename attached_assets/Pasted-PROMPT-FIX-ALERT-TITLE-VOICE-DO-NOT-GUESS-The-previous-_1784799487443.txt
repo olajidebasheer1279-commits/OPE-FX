@@ -1,0 +1,169 @@
+PROMPT — FIX ALERT TITLE & VOICE (DO NOT GUESS)
+
+The previous fix did NOT take effect.
+
+The notification title is STILL showing:
+
+Alert: AUDUSD
+
+instead of:
+
+AUDUSD • POI TRIGGER
+
+or
+
+AUDUSD POI TRIGGER
+
+Also, the Voice Assistant is still completely silent.
+
+DO NOT tell me the code was updated.
+
+Instead, trace the ENTIRE alert pipeline from beginning to end.
+
+──────────────────────────────
+
+1. Trace the complete flow
+
+Check every step:
+
+• Alert creation
+• Database storage
+• Backend event generation
+• SSE/WebSocket broadcast
+• Frontend notification renderer
+• Voice Assistant
+
+──────────────────────────────
+
+2. Verify triggerName
+
+Verify whether triggerName is actually being:
+
+• Saved in the database
+• Returned by the API
+• Included in the SSE/WebSocket payload
+• Received by the frontend
+• Used by the notification component
+
+If any step loses triggerName, fix ONLY that step.
+
+──────────────────────────────
+
+3. Notification title
+
+The frontend is still rendering:
+
+Alert: ${pair}
+
+Find where this is happening.
+
+Replace it with:
+
+${pair} • ${triggerName}
+
+Example:
+
+AUDUSD • POI TRIGGER
+
+GBPAUD • BREAK OF STRUCTURE TRIGGER
+
+EURUSD • ENTRY TRIGGER
+
+──────────────────────────────
+
+4. Notification body
+
+Display exactly:
+
+Price Goes Above 0.69975
+
+Check your break
+
+Do NOT display:
+
+Note:
+
+Do NOT display:
+
+Alert:
+
+Remove the "Note:" label completely.
+
+──────────────────────────────
+
+5. Voice Assistant
+
+Do NOT assume it works.
+
+Verify that speechSynthesis.speak() is actually executing.
+
+If it is not executing:
+
+Find the exact reason.
+
+Fix it.
+
+The voice must speak:
+
+"AUDUSD.
+
+POI Trigger.
+
+Basheer,
+
+check your chart."
+
+Read in this order:
+
+1. Pair
+2. Trigger Name
+3. Spoken Name
+4. Check your chart
+
+──────────────────────────────
+
+6. Test yourself
+
+Create a real alert.
+
+Wait until price triggers.
+
+Confirm ALL of these:
+
+✅ Notification title:
+
+AUDUSD • POI TRIGGER
+
+✅ Notification body:
+
+Price Goes Above 0.69975
+
+Check your break
+
+✅ Voice speaks:
+
+"AUDUSD. POI Trigger. Basheer, check your chart."
+
+──────────────────────────────
+
+IMPORTANT
+
+Do NOT modify anything unrelated.
+
+Do NOT change:
+
+• Live monitoring
+• Providers
+• Database schema
+• Dashboard
+• Trading logic
+• UI design
+• Authentication
+
+Fix ONLY the Alert Title rendering and the Voice Assistant.
+
+The application is already deployed.
+
+Only patch the existing alert system.
+
+Do NOT report success until you have personally verified that the notification title and voice are both working correctly.
