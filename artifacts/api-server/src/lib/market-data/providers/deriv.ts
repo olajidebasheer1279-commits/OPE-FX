@@ -7,15 +7,15 @@
  * To replace this provider: implement IMarketProvider with the same canHandle()
  * contract and swap the entry in engine.ts. Nothing else changes.
  *
- * Feed: Deriv public WebSocket API (wss://ws.binaryws.com/websockets/v3)
- * Auth: none — app_id=1 is the public open app ID.
+ * Feed: Deriv public market-data WebSocket
+ * (wss://api.derivws.com/trading/v1/options/ws/public)
+ * Auth: none — this endpoint is intended for public market data.
  */
 import WebSocket from "ws";
 import { BaseProvider } from "./base.js";
 import { DERIV_PATTERNS } from "../symbol-data.js";
 
-const APP_ID = process.env["DERIV_APP_ID"] ?? "1";
-const WS_URL = `wss://ws.binaryws.com/websockets/v3?app_id=${APP_ID}`;
+const WS_URL = "wss://api.derivws.com/trading/v1/options/ws/public";
 
 export class DerivProvider extends BaseProvider {
   readonly name = "deriv";

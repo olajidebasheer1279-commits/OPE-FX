@@ -6,8 +6,9 @@
  * configured it takes priority (its canHandle() returns true first), so this
  * provider is silently skipped.
  *
- * Feed: Deriv public WebSocket (wss://ws.binaryws.com/websockets/v3)
- * Auth: none — app_id=1 is the public open app ID (same as DerivProvider).
+ * Feed: Deriv public market-data WebSocket
+ * (wss://api.derivws.com/trading/v1/options/ws/public)
+ * Auth: none — this endpoint is intended for public market data.
  *
  * Symbol translation:
  *   OPE-FX "GBPAUD"  →  Deriv "frxGBPAUD"
@@ -19,8 +20,7 @@ import WebSocket from "ws";
 import { BaseProvider } from "./base.js";
 import { CRYPTO_BASES } from "../symbol-data.js";
 
-const APP_ID = process.env["DERIV_APP_ID"] ?? "1";
-const WS_URL = `wss://ws.binaryws.com/websockets/v3?app_id=${APP_ID}`;
+const WS_URL = "wss://api.derivws.com/trading/v1/options/ws/public";
 
 export class DerivForexProvider extends BaseProvider {
   readonly name = "deriv-forex";

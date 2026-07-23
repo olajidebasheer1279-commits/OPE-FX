@@ -20,7 +20,7 @@ Switched to **Kraken** WebSocket v2 for crypto — no key required, no geo-restr
 | Forex       | Finnhub       | FINNHUB_API_KEY | wss://ws.finnhub.io?token={key} |
 | Metals      | Finnhub       | FINNHUB_API_KEY | same |
 | Crypto      | Kraken        | none          | wss://ws.kraken.com/v2 |
-| Synthetic   | Deriv         | none (app_id=1) | wss://ws.binaryws.com/websockets/v3?app_id=1 |
+| Synthetic   | Deriv         | none (public market-data endpoint) | wss://api.derivws.com/trading/v1/options/ws/public |
 | Indices     | Twelve Data   | TWELVE_DATA_API_KEY | wss://ws.twelvedata.com/v1/quotes/price?apikey={key} |
 
 ## Key files
