@@ -5,6 +5,7 @@ import { db, alertsTable, alertHistoryTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/requireAuth";
 import { alertEngine } from "../lib/alert-engine";
 import { marketEngine } from "../lib/market-data/engine";
+import { toDerivSymbol } from "../lib/market-data/symbol-data";
 
 const router: IRouter = Router();
 
@@ -133,7 +134,7 @@ router.post("/alerts", requireAuth, async (req, res): Promise<void> => {
         type: body.type,
         condition: body.condition,
         targetValue: body.targetValue.toString(),
-        symbol: body.symbol,
+        symbol: toDerivSymbol(body.symbol),
         message: body.message ?? null,
         isEnabled: body.isEnabled,
         repeat: body.repeat,
@@ -176,7 +177,7 @@ router.patch("/alerts/:id", requireAuth, async (req, res): Promise<void> => {
   if (body.condition !== undefined) updateFields.condition = body.condition;
   if (body.targetValue !== undefined)
     updateFields.targetValue = body.targetValue.toString();
-  if (body.symbol !== undefined) updateFields.symbol = body.symbol;
+  if (body.symbol !== undefined) updateFields.symbol = toDerivSymbol(body.symbol);
   if (body.message !== undefined) updateFields.message = body.message ?? null;
   if (body.isEnabled !== undefined) updateFields.isEnabled = body.isEnabled;
   if (body.repeat !== undefined) updateFields.repeat = body.repeat;

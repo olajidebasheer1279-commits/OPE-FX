@@ -21,6 +21,7 @@ import { eq } from "drizzle-orm";
 import { db, alertsTable } from "@workspace/db";
 import { logger } from "../logger.js";
 import type { IMarketProvider, PriceHandler, PriceUpdate, ProviderStatus } from "./types.js";
+import { toDerivSymbol } from "./symbol-data.js";
 
 // ── Provider implementations ──────────────────────────────────────────────────
 // This is the ONLY place in the codebase that imports concrete provider classes.
@@ -86,8 +87,9 @@ class MarketDataEngine {
 
   /** Immediately subscribe opeFxSymbol if not already subscribed. */
   ensureSubscribed(opeFxSymbol: string): void {
-    if (!this.subscribedSymbols.has(opeFxSymbol.toUpperCase())) {
-      this.subscribeSymbol(opeFxSymbol);
+    const canonical = toDerivSymbol(opeFxSymbol).toUpperCase();
+    if (!this.subscribedSymbols.has(canonical)) {
+      this.subscribeSymbol(canonical);
     }
   }
 
@@ -96,7 +98,7 @@ class MarketDataEngine {
   }
 
   private subscribeSymbol(opeFxSymbol: string): void {
-    const upper = opeFxSymbol.toUpperCase();
+    const upper = toDerivSymbol(opeFxSymbol).toUpperCase();
     const provider = this.findProvider(upper);
     if (!provider) {
       logger.warn({ symbol: upper }, "No provider can handle symbol — skipping");
@@ -109,7 +111,7 @@ class MarketDataEngine {
   }
 
   private unsubscribeSymbol(opeFxSymbol: string): void {
-    const upper = opeFxSymbol.toUpperCase();
+    const upper = toDerivSymbol(opeFxSymbol).toUpperCase();
     const provider = this.findProvider(upper);
     if (provider) provider.unsubscribe(upper);
     this.subscribedSymbols.delete(upper);
@@ -130,7 +132,7 @@ class MarketDataEngine {
 
       const needed = new Set<string>(
         rows
-          .map((r) => r.symbol.toUpperCase())
+          .map((r) => toDerivSymbol(r.symbol).toUpperCase())
           .filter((s) => !!this.findProvider(s)),
       );
 

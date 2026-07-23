@@ -12,15 +12,40 @@
 
 // ── Deriv synthetic patterns ──────────────────────────────────────────────────
 
+/** Deriv's currently active 1-second Volatility Index symbols. */
+export const DERIV_1S_VOLATILITY_SYMBOLS = new Set([
+  "1HZ10V",
+  "1HZ15V",
+  "1HZ25V",
+  "1HZ30V",
+  "1HZ50V",
+  "1HZ75V",
+  "1HZ100V",
+]);
+
 export const DERIV_PATTERNS: RegExp[] = [
   /^R_\d+$/,           // R_10, R_25, R_50, R_75, R_100
   /^BOOM\d+/,          // BOOM300N, BOOM500, BOOM1000
   /^CRASH\d+/,         // CRASH300N, CRASH500, CRASH1000
-  /^1HZ\d+V$/,         // 1HZ10V … 1HZ250V
+  /^1HZ(?:10|15|25|30|50|75|100)V$/, // 1-second Volatility indices
   /^JD\d+$/,           // JD10 … JD200
   /^STEP_INDEX$/,
   /^RANGE_BREAK/,
 ];
+
+/**
+ * Convert user-facing 1-second Volatility labels to Deriv's canonical symbol.
+ * Non-Synthetic symbols are returned unchanged so Forex routing is unaffected.
+ */
+export function toDerivSymbol(symbol: string): string {
+  const normalized = symbol.trim().toUpperCase().replace(/\s+/g, " ");
+  if (DERIV_1S_VOLATILITY_SYMBOLS.has(normalized)) return normalized;
+
+  const match = normalized.match(
+    /^VOLATILITY\s*(10|15|25|30|50|75|100)\s*\(1S\)(?:\s*INDEX)?$/,
+  );
+  return match ? `1HZ${match[1]}V` : symbol;
+}
 
 // ── Index symbol maps (Twelve Data) ──────────────────────────────────────────
 

@@ -59,6 +59,13 @@ Twelve Data’s WebSocket accepts the configured key, but the mapped equity-inde
 
 **How to apply:** When restoring monitoring, verify at least one symbol per provider and distinguish connection success from subscription/tick success.
 
+## Deriv 1-second Volatility symbols
+Deriv names the active 1-second Volatility indices `1HZ10V`, `1HZ15V`, `1HZ25V`, `1HZ30V`, `1HZ50V`, `1HZ75V`, and `1HZ100V`; user-facing labels need Synthetic-only canonicalization before routing.
+
+**Why:** Alerts created from the UI were stored as labels such as `VOLATILITY 15 (1S)`, which Deriv cannot subscribe to even though `1HZ15V` is valid and live.
+
+**How to apply:** Preserve user-facing alert labels where needed, but canonicalize these aliases at alert cache, subscription, provider routing, and tick evaluation boundaries.
+
 ## Credential naming compatibility
 The Twelve Data provider accepts both `TWELVE_DATA_API_KEY` (documented name) and `TWELVEDATA_API_KEY` (compact deployment name).
 

@@ -21,6 +21,7 @@ import { logger } from "./logger.js";
 import { sseBroadcaster } from "./market-data/sse-broadcaster.js";
 import { marketEngine } from "./market-data/engine.js";
 import type { PriceUpdate } from "./market-data/types.js";
+import { toDerivSymbol } from "./market-data/symbol-data.js";
 
 /** How many ms to wait before the same alert can fire again (repeat=true). */
 const COOLDOWN_MS = 60_000;
@@ -81,7 +82,7 @@ class AlertEngine {
   // ── Core evaluation ─────────────────────────────────────────────────────────
 
   private async onPrice(update: PriceUpdate): Promise<void> {
-    const sym = update.symbol.toUpperCase();
+    const sym = toDerivSymbol(update.symbol).toUpperCase();
     const alerts = this.cache.get(sym);
     if (!alerts || alerts.length === 0) return;
 
@@ -226,7 +227,7 @@ class AlertEngine {
 
       const next = new Map<string, Alert[]>();
       for (const row of rows) {
-        const sym = row.symbol.toUpperCase();
+        const sym = toDerivSymbol(row.symbol).toUpperCase();
         const list = next.get(sym) ?? [];
         list.push(row);
         next.set(sym, list);

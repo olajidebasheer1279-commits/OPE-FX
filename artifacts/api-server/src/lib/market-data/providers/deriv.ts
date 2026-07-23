@@ -13,7 +13,7 @@
  */
 import WebSocket from "ws";
 import { BaseProvider } from "./base.js";
-import { DERIV_PATTERNS } from "../symbol-data.js";
+import { DERIV_PATTERNS, toDerivSymbol } from "../symbol-data.js";
 
 const WS_URL = "wss://api.derivws.com/trading/v1/options/ws/public";
 
@@ -24,7 +24,7 @@ export class DerivProvider extends BaseProvider {
   // ── Routing contract ───────────────────────────────────────────────────────
 
   canHandle(opeFxSymbol: string): boolean {
-    const upper = opeFxSymbol.toUpperCase().trim();
+    const upper = toDerivSymbol(opeFxSymbol).toUpperCase().trim();
     return DERIV_PATTERNS.some((p) => p.test(upper));
   }
 
@@ -48,6 +48,17 @@ export class DerivProvider extends BaseProvider {
         const msg = JSON.parse(raw.toString()) as Record<string, unknown>;
 
         if (msg["msg_type"] === "tick") {
+          const subscriptionError = msg["error"] as Record<string, unknown> | undefined;
+          if (subscriptionError) {
+            this.onError(
+              new Error(
+                (subscriptionError["message"] as string | undefined) ??
+                  "Deriv subscription failed",
+              ),
+            );
+            return;
+          }
+
           const tick = msg["tick"] as Record<string, unknown> | undefined;
           if (!tick) return;
 
@@ -99,16 +110,16 @@ export class DerivProvider extends BaseProvider {
 
   subscribe(opeFxSymbol: string): void {
     // Deriv uses its own symbol names directly (e.g. "R_75")
-    const sym = opeFxSymbol.toUpperCase();
+    const sym = toDerivSymbol(opeFxSymbol).toUpperCase().trim();
     if (this.symbolMap.has(sym)) return;
-    this.symbolMap.set(sym, opeFxSymbol);
+    this.symbolMap.set(sym, sym);
     if (this._connected && this.ws?.readyState === WebSocket.OPEN) {
       this.sendTicks(sym);
     }
   }
 
   unsubscribe(opeFxSymbol: string): void {
-    const sym = opeFxSymbol.toUpperCase();
+    const sym = toDerivSymbol(opeFxSymbol).toUpperCase().trim();
     this.symbolMap.delete(sym);
     if (this._connected && this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify({ forget_all: "ticks", symbol: sym }));
