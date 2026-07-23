@@ -51,3 +51,10 @@ DJI, NDX, SPX, UKX, DAX, NKY, AS51, CAC, HSI, FTSEMIB, IBEX, SX5E, SMI
 - `heartbeat` — every 25s to keep proxy alive
 
 **Why:** Heartbeat keeps Replit proxy from timing out long-lived SSE connections.
+
+## Current provider limitation
+Twelve Data’s WebSocket accepts the configured key, but the mapped equity-index symbols are not available on the current account: `DJI` is invalid, while `NDX` and `SPX` require a higher plan. The provider must not be treated as tick-verified until index coverage is enabled or an approved symbol mapping is supplied.
+
+**Why:** A live socket handshake alone does not prove subscription availability; representative subscription probes showed explicit rejection for the configured index symbols.
+
+**How to apply:** When restoring monitoring, verify at least one symbol per provider and distinguish connection success from subscription/tick success.
