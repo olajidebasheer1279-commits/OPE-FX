@@ -30,3 +30,9 @@ services:
         sync: false
       - key: SESSION_SECRET
         sync: false
+      # Backend market-data credentials. The alert engine runs from this
+      # service process and does not depend on the browser or SSE clients.
+      - key: FINNHUB_API_KEY
+        sync: false
+      - key: TWELVEDATA_API_KEY
+        sync: false

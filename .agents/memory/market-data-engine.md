@@ -72,3 +72,10 @@ The Twelve Data provider accepts both `TWELVE_DATA_API_KEY` (documented name) an
 **Why:** Existing Replit setups may already store the compact name, while the provider documentation uses the underscored name.
 
 **How to apply:** Check both names before requesting another Twelve Data credential or changing an existing deployment.
+
+## Render background monitoring
+Render must run the combined Express API as an always-on web service; the backend starts providers and alert evaluation without requiring any SSE client.
+
+**Why:** SSE is only a browser notification channel. Provider sockets, the 30-second subscription/cache refreshes, and database alert writes all live in the API process.
+
+**How to apply:** Keep the Render start command pointed at the API bundle and configure the provider credentials there; never gate engine startup on frontend mount or client connection count.
