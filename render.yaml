@@ -22,6 +22,12 @@ services:
       # Render dashboard so Vite can inline it during the frontend build.
       - key: VITE_CLERK_PUBLISHABLE_KEY
         sync: false
+      # Clerk proxy URL — routes Clerk Frontend API calls through your backend
+      # so auth works on custom domains without CNAME DNS setup.
+      # Set this to: https://<your-render-service-url>/api/__clerk
+      # If left unset, Clerk falls back to direct API calls (works on Render).
+      - key: VITE_CLERK_PROXY_URL
+        sync: false
       - key: CLOUDINARY_CLOUD_NAME
         sync: false
       - key: CLOUDINARY_API_KEY
@@ -33,6 +39,11 @@ services:
       # Backend market-data credentials. The alert engine runs from this
       # service process and does not depend on the browser or SSE clients.
       - key: FINNHUB_API_KEY
+        sync: false
+      # Both names are accepted by the Twelve Data provider (TWELVE_DATA_API_KEY
+      # is the primary; TWELVEDATA_API_KEY is the legacy compact form). Set
+      # whichever name you use in the Render dashboard — the server reads both.
+      - key: TWELVE_DATA_API_KEY
         sync: false
       - key: TWELVEDATA_API_KEY
         sync: false

@@ -22,10 +22,16 @@ import Placeholder from "@/pages/Placeholder";
 import AppLayout from "@/components/layout/AppLayout";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
-const clerkPubKey = publishableKeyFromHost(
-  window.location.hostname,
-  import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
-);
+// Resolve the publishable key. publishableKeyFromHost handles satellite/custom-
+// domain setups; we always fall back to the plain env var so the app works on
+// any deployment platform (Replit, Render, etc.) even if the hostname isn't
+// registered with Clerk. Do NOT throw here — module-level throws crash the
+// entire app before React mounts, producing a blank page with no error UI.
+// Validation is done inside ClerkProviderWithRoutes where ErrorBoundary can catch it.
+const clerkPubKey =
+  publishableKeyFromHost(window.location.hostname, import.meta.env.VITE_CLERK_PUBLISHABLE_KEY) ??
+  import.meta.env.VITE_CLERK_PUBLISHABLE_KEY ??
+  '';
 
 const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -34,10 +40,6 @@ function stripBase(path: string): string {
   return basePath && path.startsWith(basePath)
     ? path.slice(basePath.length) || "/"
     : path;
-}
-
-if (!clerkPubKey) {
-  throw new Error('Missing VITE_CLERK_PUBLISHABLE_KEY in .env file');
 }
 
 const clerkAppearance = {
@@ -157,6 +159,16 @@ function ClerkQueryClientCacheInvalidator() {
 
 function ClerkProviderWithRoutes() {
   const [, setLocation] = useLocation();
+
+  // Validate here — inside the React tree — so ErrorBoundary shows a readable
+  // error screen instead of a blank page if the key is missing from the build.
+  if (!clerkPubKey) {
+    throw new Error(
+      'Clerk publishable key is missing. ' +
+      'Ensure VITE_CLERK_PUBLISHABLE_KEY is set as an environment variable ' +
+      'before the frontend build runs (required by Vite at build time, not runtime).'
+    );
+  }
 
   return (
     <ClerkProvider
