@@ -4,9 +4,20 @@ import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
 
 const port = Number(process.env.PORT ?? 5173);
+// Render already supplies CLERK_PUBLISHABLE_KEY for the API. Reuse it when
+// VITE_CLERK_PUBLISHABLE_KEY was not duplicated into the build environment.
+// Clerk publishable keys are safe to embed in the browser bundle.
+const clerkPublishableKey =
+  process.env.VITE_CLERK_PUBLISHABLE_KEY ??
+  process.env.CLERK_PUBLISHABLE_KEY ??
+  '';
 
 export default defineConfig({
   base: '/',
+  define: {
+    'import.meta.env.VITE_CLERK_PUBLISHABLE_KEY':
+      JSON.stringify(clerkPublishableKey),
+  },
   plugins: [
     react(),
     tailwindcss({ optimize: false }),

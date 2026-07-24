@@ -160,13 +160,21 @@ function ClerkQueryClientCacheInvalidator() {
 function ClerkProviderWithRoutes() {
   const [, setLocation] = useLocation();
 
-  // Validate here — inside the React tree — so ErrorBoundary shows a readable
-  // error screen instead of a blank page if the key is missing from the build.
+  // Keep the missing-configuration state inside the mounted React tree so a
+  // bad production build can never turn into an unexplained blank page.
   if (!clerkPubKey) {
-    throw new Error(
-      'Clerk publishable key is missing. ' +
-      'Ensure VITE_CLERK_PUBLISHABLE_KEY is set as an environment variable ' +
-      'before the frontend build runs (required by Vite at build time, not runtime).'
+    return (
+      <div className="flex min-h-[100dvh] items-center justify-center bg-background px-6 text-center">
+        <div className="max-w-md space-y-3">
+          <h1 className="text-xl font-semibold text-foreground">
+            OPE-FX is starting up
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Authentication is not configured for this frontend build. Set
+            VITE_CLERK_PUBLISHABLE_KEY or CLERK_PUBLISHABLE_KEY and rebuild.
+          </p>
+        </div>
+      </div>
     );
   }
 
