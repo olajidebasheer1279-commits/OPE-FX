@@ -14,6 +14,7 @@ import backupRouter from "./backup";
 import alertsRouter from "./alerts";
 import alertSettingsRouter from "./alert-settings";
 import marketRouter from "./market";
+import pushRouter from "./push";
 
 const router: IRouter = Router();
 
@@ -32,5 +33,6 @@ router.use(backupRouter);
 router.use(alertsRouter);
 router.use(alertSettingsRouter);
 router.use(marketRouter);
+router.use(pushRouter);
 
 export default router;

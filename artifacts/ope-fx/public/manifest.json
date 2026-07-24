@@ -1,0 +1,17 @@
+{
+  "name": "OPE-FX",
+  "short_name": "OPE-FX",
+  "description": "OPE-FX trading journal and market alerts",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0A0F1A",
+  "theme_color": "#0A0F1A",
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

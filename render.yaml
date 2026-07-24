@@ -36,3 +36,11 @@ services:
         sync: false
       - key: TWELVEDATA_API_KEY
         sync: false
+      # Web Push VAPID credentials. Generate with:
+      # pnpm --filter @workspace/api-server exec web-push generate-vapid-keys
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_SUBJECT
+        value: mailto:alerts@ope-fx.app

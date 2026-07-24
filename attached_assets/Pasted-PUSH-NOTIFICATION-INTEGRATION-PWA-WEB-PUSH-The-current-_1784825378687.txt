@@ -1,0 +1,272 @@
+PUSH NOTIFICATION INTEGRATION (PWA WEB PUSH)
+
+The current OPE-FX alert system is COMPLETE and STABLE.
+
+GitHub backup has already been created.
+
+DO NOT rebuild or redesign anything.
+
+DO NOT modify:
+• Live Monitoring
+• Alert Engine
+• Provider Architecture
+• SSE
+• Voice Assistant
+• Dashboard
+• Authentication
+• Market APIs
+• Notification Bell
+• Alert History
+• Existing UI
+
+The ONLY goal is to add native Web Push Notifications to the existing alert pipeline.
+
+==================================================
+
+OBJECTIVE
+
+When Render detects an alert:
+
+Market
+↓
+
+Alert Engine
+↓
+
+Database
+↓
+
+Web Push Notification
+↓
+
+iPhone / Android notification
+(even when OPE-FX is closed)
+
+==================================================
+
+DO NOT CHANGE EXISTING DATABASE STRUCTURE.
+
+You MAY add ONLY the minimum database objects required to store Web Push subscriptions securely.
+
+Do NOT modify or remove any existing tables, columns, relationships, or business logic.
+
+Only create what is required for Push Notifications.
+
+==================================================
+
+Implement:
+
+• Browser Push API
+• Service Worker
+• Web Push protocol
+• VAPID Keys
+• Push Subscription registration
+• Push Subscription storage
+• Backend Push Sender
+
+==================================================
+
+When a user enables notifications:
+
+1. Register the Service Worker.
+
+2. Request Notification Permission.
+
+3. Subscribe the device.
+
+4. Save the Push Subscription securely.
+
+==================================================
+
+BACKEND
+
+The Alert Engine already works.
+
+DO NOT rewrite it.
+
+Simply extend the existing pipeline.
+
+Current pipeline:
+
+Market
+↓
+
+Alert Engine
+↓
+
+Database
+↓
+
+Toast
+
+Voice
+
+Notification Bell
+
+Extend it to:
+
+Market
+↓
+
+Alert Engine
+↓
+
+Database
+↓
+
+Push Notification Service
+↓
+
+All subscribed devices
+
+==================================================
+
+Notification Format
+
+Title:
+
+PAIR • TRIGGER NAME
+
+Examples:
+
+EURUSD • POI TRIGGER
+
+R_75 • ENTRY TRIGGER
+
+XAUUSD • BREAK OF STRUCTURE TRIGGER
+
+Body:
+
+Price Goes Above 1.91027
+
+Wait for confirmation
+
+Do NOT include:
+
+Alert:
+
+Note:
+
+Extra labels
+
+Use the Trigger Name stored with the alert.
+
+If an old alert has no Trigger Name, ONLY then fall back to:
+
+ALERT
+
+==================================================
+
+This must work dynamically for ALL supported market categories.
+
+Forex
+
+Synthetic Indices
+
+Metals
+
+Crypto
+
+Indices
+
+Stocks (if supported)
+
+Do NOT hardcode any instrument.
+
+Always use:
+
+alert.symbol
+
+alert.triggerName
+
+alert.condition
+
+alert.price
+
+alert.note
+
+==================================================
+
+RENDER
+
+Monitoring already runs on Render.
+
+DO NOT move monitoring into React.
+
+Push notifications must originate from the backend.
+
+The backend must continue sending notifications even when:
+
+• Safari is closed
+
+• React is closed
+
+• No browser tab is open
+
+Monitoring must remain entirely backend-driven.
+
+==================================================
+
+PWA
+
+Verify:
+
+• manifest.json
+
+• Service Worker
+
+• Push Manager
+
+• Notification Permission
+
+• Home Screen installation remains intact
+
+• Offline support remains intact
+
+==================================================
+
+TESTING
+
+Verify:
+
+1. User enables notifications.
+
+2. Device successfully subscribes.
+
+3. Subscription is stored.
+
+4. Alert fires.
+
+5. Push Notification is sent.
+
+6. Database history still records the alert.
+
+7. Notification Bell still records the alert.
+
+8. Voice Assistant still works when OPE-FX is open.
+
+==================================================
+
+Do NOT redesign anything.
+
+Do NOT modify completed features.
+
+Do NOT change provider integrations.
+
+Only add Web Push Notifications to the existing alert pipeline.
+
+When complete, provide:
+
+• Files created
+
+• Files modified
+
+• Database additions
+
+• VAPID configuration
+
+• Environment variables required on Render
+
+• Deployment steps
+
+• Testing steps for iPhone Home Screen (PWA)

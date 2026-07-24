@@ -22,6 +22,7 @@ import { sseBroadcaster } from "./market-data/sse-broadcaster.js";
 import { marketEngine } from "./market-data/engine.js";
 import type { PriceUpdate } from "./market-data/types.js";
 import { toDerivSymbol } from "./market-data/symbol-data.js";
+import { sendPushToUser } from "./push-service.js";
 
 /** How many ms to wait before the same alert can fire again (repeat=true). */
 const COOLDOWN_MS = 60_000;
@@ -171,6 +172,15 @@ class AlertEngine {
         message: notifBody,
         type: "alert",
         isRead: false,
+      });
+
+      void sendPushToUser(alert.userId, {
+        title: notifTitle,
+        body: notifBody,
+        alertId: alert.id,
+        symbol: alert.symbol,
+        triggerName: triggerDisplayName ?? "ALERT",
+        price: triggerPrice,
       });
 
       // 3. Disable if one-shot
