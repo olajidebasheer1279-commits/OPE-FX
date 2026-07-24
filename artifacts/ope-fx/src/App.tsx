@@ -33,14 +33,14 @@ const clerkPubKey =
   import.meta.env.VITE_CLERK_PUBLISHABLE_KEY ??
   '';
 
-// The Render service serves both the frontend and the Clerk proxy endpoint.
-// Always use that same origin in production so a stale custom proxy hostname
-// cannot make Clerk fail before the application renders. Local development
-// may still opt into an explicitly configured proxy URL.
+// Use an explicit proxy URL only when VITE_CLERK_PROXY_URL is set.
+// Development Clerk instances (pk_test_) do not accept arbitrary proxy hosts —
+// forcing the same-origin /api/__clerk URL causes a Clerk "host_invalid" 400,
+// which prevents ClerkProvider from ever becoming "loaded" and leaves every
+// <Show> component rendering nothing (blank page). When no proxy URL is
+// configured, Clerk communicates directly with its own CDN, which always works.
 const configuredClerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL?.trim();
-const clerkProxyUrl = import.meta.env.PROD
-  ? `${window.location.origin}/api/__clerk`
-  : configuredClerkProxyUrl || undefined;
+const clerkProxyUrl = configuredClerkProxyUrl || undefined;
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 function stripBase(path: string): string {
