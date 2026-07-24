@@ -163,7 +163,10 @@ export class FinnhubProvider extends BaseProvider {
 
   disconnect(): void {
     this.cancelReconnect();
-    this.ws?.close();
+    // Use terminate() rather than close() so this is safe to call in any
+    // readyState — including CONNECTING (e.g. when a 429 arrives before the
+    // WebSocket handshake completes). close() throws in that state.
+    this.ws?.terminate();
     this.ws = null;
     this._connected = false;
   }
