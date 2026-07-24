@@ -33,7 +33,14 @@ const clerkPubKey =
   import.meta.env.VITE_CLERK_PUBLISHABLE_KEY ??
   '';
 
-const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
+// The Render service serves both the frontend and the Clerk proxy endpoint.
+// Always use that same origin in production so a stale custom proxy hostname
+// cannot make Clerk fail before the application renders. Local development
+// may still opt into an explicitly configured proxy URL.
+const configuredClerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL?.trim();
+const clerkProxyUrl = import.meta.env.PROD
+  ? `${window.location.origin}/api/__clerk`
+  : configuredClerkProxyUrl || undefined;
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 function stripBase(path: string): string {
