@@ -9,3 +9,4 @@
 - [Market Data Engine](market-data-engine.md) — live price providers (Kraken/Deriv/Finnhub/TwelveData), alert engine, SSE push; Binance geo-blocked from Replit US servers.
 - [Preview auth verification](preview-auth-verification.md) — app-preview screenshots use a separate signed-out browser context, so they cannot validate an existing Clerk session.
 - [External Clerk web auth](clerk-web-auth.md) — the API secret must match the frontend’s Clerk instance; browser web requests should use Clerk cookies, not bearer bridging.
+- [Imported OPE-FX setup](imported-ope-fx-setup.md) — initialize the development Drizzle schema before starting background alert and market-data services.
