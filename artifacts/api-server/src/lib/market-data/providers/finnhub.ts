@@ -21,6 +21,19 @@ import {
 
 const WS_BASE = "wss://ws.finnhub.io";
 
+/**
+ * How long to pause after Finnhub returns a 429 / rate-limit signal.
+ * 10 minutes is well within free-plan reset windows and avoids repeated
+ * ban escalation. During this window the engine re-routes Forex/Metals
+ * symbols to DerivForexProvider automatically.
+ */
+const RATE_LIMIT_BACKOFF_MS = 10 * 60 * 1_000;
+
+/** Returns true if the error message indicates a rate-limit condition. */
+function isRateLimitError(msg: string): boolean {
+  return /429|too many requests|rate.?limit/i.test(msg);
+}
+
 // Approximate half-spread in quote currency units (used to synthesise bid/ask
 // from trade price, since Finnhub streams trades, not quotes).
 function halfSpread(quoteCode: string): number {
@@ -65,6 +78,23 @@ export class FinnhubProvider extends BaseProvider {
     const ws = new WebSocket(`${WS_BASE}?token=${this.apiKey}`);
     this.ws = ws;
 
+    // ── HTTP-level 429 during WebSocket upgrade ────────────────────────────
+    // When the server rejects the upgrade with 429, `ws` emits
+    // `unexpected-response` (if a listener is registered) instead of `error`.
+    ws.on("unexpected-response", (_req, res) => {
+      if (res.statusCode === 429) {
+        const retryAfterHeader = parseInt(res.headers["retry-after"] ?? "", 10);
+        const backoff = isNaN(retryAfterHeader)
+          ? RATE_LIMIT_BACKOFF_MS
+          : Math.max(retryAfterHeader * 1_000, RATE_LIMIT_BACKOFF_MS);
+        res.resume(); // drain the response body so the socket can close cleanly
+        this.onRateLimited(backoff);
+      } else {
+        this.onError(new Error(`Finnhub unexpected HTTP ${res.statusCode ?? "?"}`));
+        res.resume();
+      }
+    });
+
     ws.on("open", () => {
       this.onConnected();
       for (const provSym of this.symbolMap.keys()) {
@@ -102,7 +132,13 @@ export class FinnhubProvider extends BaseProvider {
           }
         }
         if (msg["type"] === "error") {
-          this.onError(new Error(String(msg["msg"] ?? "Finnhub error")));
+          // Finnhub sends rate-limit signals as WS-level error frames too
+          const errText = String(msg["msg"] ?? msg["message"] ?? "Finnhub error");
+          if (isRateLimitError(errText)) {
+            this.onRateLimited(RATE_LIMIT_BACKOFF_MS);
+          } else {
+            this.onError(new Error(errText));
+          }
         }
       } catch { /* ignore malformed frames */ }
     });
@@ -113,7 +149,16 @@ export class FinnhubProvider extends BaseProvider {
       this.onDisconnected("stream closed");
     });
 
-    ws.on("error", (err) => { this.onError(err); });
+    ws.on("error", (err) => {
+      // Catch connection-level 429s that surface as error events when there
+      // is no `unexpected-response` listener or the WS library routes them here.
+      const msg = err instanceof Error ? err.message : String(err);
+      if (isRateLimitError(msg) || msg.includes("429")) {
+        this.onRateLimited(RATE_LIMIT_BACKOFF_MS);
+      } else {
+        this.onError(err);
+      }
+    });
   }
 
   disconnect(): void {

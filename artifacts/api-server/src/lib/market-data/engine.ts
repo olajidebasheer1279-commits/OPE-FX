@@ -53,6 +53,13 @@ class MarketDataEngine {
   /** OPE-FX symbols currently subscribed (uppercase). */
   private subscribedSymbols = new Set<string>();
 
+  /**
+   * Tracks which provider is currently serving each symbol so that
+   * unsubscribeSymbol can target the right provider, and so that
+   * rebalanceRateLimitedSymbols can re-route away from a degraded provider.
+   */
+  private symbolProviders = new Map<string, IMarketProvider>();
+
   private refreshTimer: ReturnType<typeof setInterval> | null = null;
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
@@ -93,8 +100,14 @@ class MarketDataEngine {
     }
   }
 
+  /**
+   * Returns the first non-rate-limited provider that can handle the symbol.
+   * Rate-limited providers are skipped so that subscriptions automatically
+   * fall through to the next capable provider (e.g. DerivForex when Finnhub
+   * is backing off from a 429).
+   */
   private findProvider(opeFxSymbol: string): IMarketProvider | undefined {
-    return this.providers.find((p) => p.canHandle(opeFxSymbol));
+    return this.providers.find((p) => p.canHandle(opeFxSymbol) && !p.isRateLimited());
   }
 
   private subscribeSymbol(opeFxSymbol: string): void {
@@ -107,15 +120,51 @@ class MarketDataEngine {
     // Always pass the OPE-FX symbol; each provider translates internally.
     provider.subscribe(upper);
     this.subscribedSymbols.add(upper);
+    this.symbolProviders.set(upper, provider);
     logger.debug({ symbol: upper, provider: provider.name }, "Subscribed to symbol");
   }
 
   private unsubscribeSymbol(opeFxSymbol: string): void {
     const upper = toDerivSymbol(opeFxSymbol).toUpperCase();
-    const provider = this.findProvider(upper);
+    // Use the tracked provider so we unsubscribe from the right one even if
+    // it is currently rate-limited (and therefore skipped by findProvider).
+    const provider = this.symbolProviders.get(upper) ?? this.findProvider(upper);
     if (provider) provider.unsubscribe(upper);
     this.subscribedSymbols.delete(upper);
+    this.symbolProviders.delete(upper);
     this.priceCache.delete(upper);
+  }
+
+  /**
+   * Re-route symbols whose current provider has entered a rate-limit window.
+   * Called at the start of every refreshSubscriptions() cycle so that fallback
+   * activation happens within 30 s of a 429 — no restart required.
+   *
+   * Recovery (switching back to the preferred provider once the rate-limit
+   * window expires) happens naturally on the next server restart or when
+   * the subscription set changes, keeping the logic simple and safe.
+   */
+  private rebalanceRateLimitedSymbols(): void {
+    for (const [sym, currentProvider] of this.symbolProviders) {
+      if (!currentProvider.isRateLimited()) continue;
+
+      const fallback = this.findProvider(sym); // skips rate-limited providers
+      if (!fallback) {
+        logger.warn(
+          { symbol: sym, lockedProvider: currentProvider.name },
+          "Symbol rate-limited and no fallback provider available — will retry",
+        );
+        continue;
+      }
+
+      logger.info(
+        { symbol: sym, from: currentProvider.name, to: fallback.name },
+        "Rerouting symbol — primary provider rate-limited",
+      );
+      currentProvider.unsubscribe(sym);
+      fallback.subscribe(sym);
+      this.symbolProviders.set(sym, fallback);
+    }
   }
 
   /**
@@ -125,6 +174,10 @@ class MarketDataEngine {
    */
   private async refreshSubscriptions(): Promise<void> {
     try {
+      // Re-route any symbols whose assigned provider is now rate-limited
+      // before syncing with the DB, so new subscriptions also go to a healthy provider.
+      this.rebalanceRateLimitedSymbols();
+
       const rows = await db
         .select({ symbol: alertsTable.symbol })
         .from(alertsTable)

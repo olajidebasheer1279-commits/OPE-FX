@@ -46,8 +46,47 @@ export abstract class BaseProvider implements IMarketProvider {
   private reconnectDelay = 2_000;
   private readonly maxReconnectDelay = 60_000;
 
+  // ── Rate-limit backoff ────────────────────────────────────────────────────
+
+  /** Unix-ms timestamp until which the provider is considered rate-limited. */
+  protected _rateLimitUntil = 0;
+  /** Prevents duplicate rate-limit timers if multiple 429 signals arrive. */
+  private rateLimitTimer: ReturnType<typeof setTimeout> | null = null;
+
   get connected(): boolean {
     return this._connected;
+  }
+
+  isRateLimited(): boolean {
+    return Date.now() < this._rateLimitUntil;
+  }
+
+  /**
+   * Call when the remote signals a rate-limit (HTTP 429 or equivalent).
+   * Closes the connection, cancels any pending quick reconnect, and schedules
+   * a single reconnect attempt after `retryAfterMs`. Idempotent — a second
+   * call while a timer is already running is a no-op.
+   */
+  protected onRateLimited(retryAfterMs: number): void {
+    if (this.rateLimitTimer) return; // already waiting out a rate-limit window
+    this._rateLimitUntil = Date.now() + retryAfterMs;
+    this._error = `Rate limited — pausing for ${Math.ceil(retryAfterMs / 60_000)} min`;
+    logger.warn(
+      { provider: this.name, retryAfterMs },
+      "Provider rate-limited — closing connection and backing off",
+    );
+    // Cancel any pending quick reconnect first so it doesn't fire while we wait.
+    this.cancelReconnect();
+    // Close the live connection. The close event will call onDisconnected(),
+    // which checks isRateLimited() and skips scheduleReconnect().
+    this.disconnect();
+    this.rateLimitTimer = setTimeout(() => {
+      this.rateLimitTimer = null;
+      this._rateLimitUntil = 0;
+      this._error = undefined;
+      logger.info({ provider: this.name }, "Rate-limit window expired — reconnecting");
+      this.connect();
+    }, retryAfterMs);
   }
 
   // ── Price handler registration ────────────────────────────────────────────
@@ -82,7 +121,11 @@ export abstract class BaseProvider implements IMarketProvider {
     if (reason) {
       logger.warn({ provider: this.name, reason }, "Provider disconnected");
     }
-    this.scheduleReconnect();
+    // Skip the quick reconnect if we're inside a rate-limit window;
+    // the rate-limit timer in onRateLimited() will reconnect when ready.
+    if (!this.isRateLimited()) {
+      this.scheduleReconnect();
+    }
   }
 
   protected onError(err: unknown): void {

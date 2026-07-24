@@ -89,4 +89,11 @@ export interface IMarketProvider {
 
   /** Return a point-in-time health snapshot for the status endpoint. */
   getStatus(): ProviderStatus;
+
+  /**
+   * Returns true while the provider is inside a rate-limit backoff window
+   * and should not receive new subscriptions. The engine uses this to skip
+   * the provider during routing and to re-route existing symbols to fallbacks.
+   */
+  isRateLimited(): boolean;
 }
