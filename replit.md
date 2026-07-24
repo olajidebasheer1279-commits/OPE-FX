@@ -1,62 +1,66 @@
-# OPE-FX — Professional Forex Trading Journal
+# OPE-FX
 
-A full-stack trading journal and analytics cockpit for disciplined Forex, Metals, Indices, and Synthetic Indices traders.
+A professional-grade trading journal and analytics platform for Forex, Metals, and Indices.
 
 ## Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Frontend | React + Vite + Tailwind CSS (shadcn/ui) |
-| Backend | Express 5 (Node.js ESM) |
-| Database | PostgreSQL via Drizzle ORM |
-| Auth | Clerk |
-| Image Storage | Cloudinary (+ Replit Object Storage fallback) |
-| Monorepo | pnpm workspaces |
+- **Frontend**: React 19, Vite 7, Tailwind CSS v4, shadcn/ui, TanStack Query v5, Wouter
+- **Backend**: Express 5, TypeScript, Pino logging
+- **Database**: PostgreSQL with Drizzle ORM
+- **Auth**: Clerk
+- **Storage**: Replit Object Storage + Cloudinary (screenshots)
+- **Market Data**: Finnhub, Twelve Data, Kraken, Deriv
 
-## Running the app
-
-The imported project is configured with managed Replit workflows:
-
-- **OPE-FX (frontend)** — `pnpm --filter @workspace/ope-fx run dev` → port 19427
-- **API Server** — `pnpm --filter @workspace/api-server run dev` → port 8080
-- **Canvas preview** — `pnpm --filter @workspace/mockup-sandbox run dev` → port 8081
-
-Install dependencies: `pnpm install`
-
-Push DB schema: `pnpm --filter @workspace/db run push`
-
-The public API health check is available at `/healthz` on the API service and
-returns the current service status. The frontend is served at the root preview
-path.
-
-## Environment variables / secrets required
-
-| Key | Notes |
-|-----|-------|
-| `DATABASE_URL` | Runtime-managed by Replit (auto-provisioned) |
-| `CLERK_SECRET_KEY` | Secret — from Clerk dashboard |
-| `CLERK_PUBLISHABLE_KEY` | From Clerk dashboard |
-| `VITE_CLERK_PUBLISHABLE_KEY` | Same value as `CLERK_PUBLISHABLE_KEY` |
-| `SESSION_SECRET` | Secret — any random string |
-| `CLOUDINARY_CLOUD_NAME` | For image uploads |
-| `CLOUDINARY_API_KEY` | For image uploads |
-| `CLOUDINARY_API_SECRET` | Secret — for image uploads |
-
-## Project structure
+## Project Structure
 
 ```
 artifacts/
-  ope-fx/          React frontend (preview path: /)
-  api-server/      Express API server (preview path: /api)
-  mockup-sandbox/  Design mockup server
+  ope-fx/          # React frontend (preview path: /)
+  api-server/      # Express backend (preview path: /api)
+  mockup-sandbox/  # UI component sandbox (preview path: /__mockup)
 lib/
-  api-client-react/  Orval-generated React Query hooks
-  api-spec/          OpenAPI spec + Orval config
-  api-zod/           Shared Zod validation schemas
-  calc-engine/       Zero-dep trade metrics engine
-  db/                Drizzle ORM schema + client
+  calc-engine/     # Shared trade/risk calculation logic
+  db/              # PostgreSQL schema, migrations, Drizzle client
+  object-storage-web/  # Frontend helpers for Replit Object Storage
 ```
 
-## User preferences
+## Running the App
 
-- Keep existing monorepo structure and pnpm workspace conventions
+All three services start automatically via configured workflows:
+
+| Workflow | Command |
+|---|---|
+| `artifacts/api-server: API Server` | `pnpm --filter @workspace/api-server run dev` |
+| `artifacts/ope-fx: web` | `pnpm --filter @workspace/ope-fx run dev` |
+| `artifacts/mockup-sandbox: Component Preview Server` | `pnpm --filter @workspace/mockup-sandbox run dev` |
+
+## Database
+
+Schema is managed with Drizzle ORM. To push schema changes:
+
+```bash
+pnpm --filter @workspace/db push
+```
+
+## Required Secrets
+
+| Secret | Purpose |
+|---|---|
+| `CLERK_SECRET_KEY` | Backend Clerk auth |
+| `CLERK_PUBLISHABLE_KEY` | Backend Clerk auth |
+| `VITE_CLERK_PUBLISHABLE_KEY` | Frontend Clerk auth |
+| `FINNHUB_API_KEY` | Market data |
+| `TWELVE_DATA_API_KEY` | Market data |
+| `VAPID_PUBLIC_KEY` | Web push notifications |
+| `VAPID_PRIVATE_KEY` | Web push notifications |
+| `VAPID_SUBJECT` | Web push notifications (mailto: URL) |
+| `CLOUDINARY_CLOUD_NAME` | Screenshot storage |
+| `CLOUDINARY_API_KEY` | Screenshot storage |
+| `CLOUDINARY_API_SECRET` | Screenshot storage |
+| `SESSION_SECRET` | Session signing |
+
+`DATABASE_URL` is managed automatically by Replit.
+
+## User Preferences
+
+- Ask for secrets one at a time using the secure Replit secrets flow, never list them all at once.
