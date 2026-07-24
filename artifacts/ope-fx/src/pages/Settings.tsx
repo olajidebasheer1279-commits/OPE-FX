@@ -17,7 +17,14 @@ import {
   FileText,
   FileDown,
   Loader2,
+  Bell,
+  BellOff,
+  BellRing,
+  Smartphone,
+  Shield,
+  ExternalLink,
 } from "lucide-react";
+import { useWebPushNotifications } from "@/hooks/useWebPushNotifications";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -766,6 +773,274 @@ function ExportTab() {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Notifications Tab
+// ---------------------------------------------------------------------------
+
+function NotificationsTab() {
+  const { permission, isSubscribed, isBusy, enablePush, disablePush } =
+    useWebPushNotifications();
+  const [lastResult, setLastResult] = useState<"success" | "denied" | "error" | null>(null);
+  const { toast } = useToast();
+
+  const isIos =
+    typeof navigator !== "undefined" &&
+    /iPad|iPhone|iPod/.test(navigator.userAgent) &&
+    !("MSStream" in window);
+
+  const isInStandaloneMode =
+    typeof window !== "undefined" &&
+    (window.matchMedia("(display-mode: standalone)").matches ||
+      ("standalone" in window.navigator &&
+        (window.navigator as unknown as { standalone: boolean }).standalone === true));
+
+  const handleEnable = async () => {
+    const ok = await enablePush();
+    if (ok) {
+      setLastResult("success");
+      toast({ title: "Notifications enabled", description: "OPE-FX will now deliver alerts to this device." });
+    } else {
+      const perm = typeof Notification !== "undefined" ? Notification.permission : "default";
+      setLastResult(perm === "denied" ? "denied" : "error");
+    }
+  };
+
+  const handleDisable = async () => {
+    await disablePush();
+    setLastResult(null);
+    toast({ title: "Notifications disabled" });
+  };
+
+  // ── Unsupported ────────────────────────────────────────────────────────────
+  if (permission === "unsupported") {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <BellOff className="w-4 h-4 text-muted-foreground" />
+            Push Notifications
+          </CardTitle>
+          <CardDescription>Background alert delivery to this device</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-start gap-3 rounded-lg border border-orange-500/20 bg-orange-500/10 p-4">
+            <AlertTriangle className="w-5 h-5 text-orange-400 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-orange-300">Not supported in this browser</p>
+              <p className="text-xs text-muted-foreground">
+                Push notifications require a modern browser with Service Worker support.
+                Try Chrome, Edge, Firefox, or Safari 16.4+.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // ── Loading ────────────────────────────────────────────────────────────────
+  if (permission === "loading") {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex items-center gap-3 text-muted-foreground">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <span className="text-sm">Checking notification status…</span>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Status card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            {isSubscribed ? (
+              <BellRing className="w-4 h-4 text-green-400" />
+            ) : (
+              <Bell className="w-4 h-4 text-muted-foreground" />
+            )}
+            Push Notifications
+            {isSubscribed && (
+              <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-xs">Active</Badge>
+            )}
+          </CardTitle>
+          <CardDescription>
+            Deliver price alerts to this device even when the app is closed or the screen is locked
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+
+          {/* Denied state */}
+          {permission === "denied" && (
+            <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-4 space-y-3">
+              <div className="flex items-start gap-3">
+                <Shield className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-red-300">Notifications blocked</p>
+                  <p className="text-xs text-muted-foreground">
+                    You've blocked notifications for this site. To re-enable them,
+                    update your browser or device settings.
+                  </p>
+                </div>
+              </div>
+              <div className="bg-muted/20 rounded-md p-3 space-y-2">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">How to unblock</p>
+                <ul className="text-xs text-muted-foreground space-y-1.5">
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary mt-0.5">Chrome / Edge:</span>
+                    Click the lock icon in the address bar → Notifications → Allow
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary mt-0.5">Firefox:</span>
+                    Click the shield icon → Permissions → Allow Notifications
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary mt-0.5">Safari (macOS):</span>
+                    Safari → Settings for This Website → Notifications → Allow
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary mt-0.5">iOS:</span>
+                    Settings → OPE-FX → Notifications → Allow
+                  </li>
+                </ul>
+              </div>
+            </div>
+          )}
+
+          {/* iOS not-installed warning */}
+          {isIos && !isInStandaloneMode && permission !== "denied" && (
+            <div className="rounded-lg border border-blue-500/20 bg-blue-500/10 p-4 flex items-start gap-3">
+              <Smartphone className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-blue-300">Install app first (iOS)</p>
+                <p className="text-xs text-muted-foreground">
+                  On iPhone and iPad, push notifications only work when OPE-FX is installed as a
+                  home screen app. Tap the Share button in Safari, then choose{" "}
+                  <strong className="text-foreground">Add to Home Screen</strong>, then return here
+                  to enable notifications.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Subscribed state */}
+          {isSubscribed && permission === "granted" && (
+            <div className="rounded-lg border border-green-500/20 bg-green-500/10 p-4 flex items-start gap-3">
+              <CheckCircle className="w-5 h-5 text-green-400 shrink-0 mt-0.5" />
+              <div className="space-y-1 flex-1">
+                <p className="text-sm font-medium text-green-300">Notifications active on this device</p>
+                <p className="text-xs text-muted-foreground">
+                  OPE-FX will deliver price alerts to this device when thresholds are crossed,
+                  even if the app is closed or your screen is locked.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Success flash */}
+          {lastResult === "success" && !isSubscribed && (
+            <div className="rounded-lg border border-green-500/20 bg-green-500/10 p-3 flex items-center gap-2 text-sm text-green-300">
+              <CheckCircle className="w-4 h-4 shrink-0" />
+              Notifications enabled — you're all set.
+            </div>
+          )}
+
+          {/* Error flash */}
+          {lastResult === "error" && (
+            <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-3 flex items-center gap-2 text-sm text-red-300">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              Something went wrong. Please try again or check your connection.
+            </div>
+          )}
+
+          {/* Action buttons */}
+          <div className="flex flex-wrap gap-3">
+            {!isSubscribed && permission !== "denied" && (
+              <Button
+                onClick={handleEnable}
+                disabled={isBusy || (isIos && !isInStandaloneMode)}
+                className="gap-2"
+              >
+                {isBusy ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Bell className="w-4 h-4" />
+                )}
+                {isBusy ? "Enabling…" : "Enable Notifications"}
+              </Button>
+            )}
+
+            {isSubscribed && (
+              <Button
+                variant="outline"
+                onClick={handleDisable}
+                disabled={isBusy}
+                className="gap-2 border-red-500/30 text-red-400 hover:bg-red-500/10"
+              >
+                {isBusy ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <BellOff className="w-4 h-4" />
+                )}
+                {isBusy ? "Disabling…" : "Disable Notifications"}
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* How it works */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">How It Works</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {[
+              {
+                icon: Bell,
+                title: "Alert fires",
+                body: "When a price alert threshold is crossed, the OPE-FX server detects it instantly.",
+              },
+              {
+                icon: BellRing,
+                title: "Push sent",
+                body: "The server pushes a notification directly to this device using Web Push — no polling.",
+              },
+              {
+                icon: Smartphone,
+                title: "You're notified",
+                body: "Your device shows the notification and OPE-FX appears in your device notification settings.",
+              },
+            ].map(({ icon: Icon, title, body }) => (
+              <div key={title} className="bg-muted/20 rounded-lg p-4 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Icon className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-medium">{title}</span>
+                </div>
+                <p className="text-xs text-muted-foreground">{body}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex items-start gap-2 pt-1">
+            <ExternalLink className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
+            <p className="text-xs text-muted-foreground">
+              Each browser/device registers separately. Enable notifications on every device where
+              you want alerts delivered. Subscriptions are tied to your account — not to a
+              specific alert.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export default function Settings() {
   const { signOut } = useClerk();
   const { user } = useUser();
@@ -794,23 +1069,28 @@ export default function Settings() {
       </div>
 
       <Tabs defaultValue="account" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto sm:h-10 gap-1 sm:gap-0 mb-6">
-          <TabsTrigger value="account" className="gap-2">
-            <Wallet className="w-4 h-4" />
+        <TabsList className="grid w-full grid-cols-3 sm:grid-cols-5 h-auto gap-1 mb-6">
+          <TabsTrigger value="account" className="gap-1.5 text-xs sm:text-sm">
+            <Wallet className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             <span className="hidden sm:inline">Account</span>
             <span className="sm:hidden">Account</span>
           </TabsTrigger>
-          <TabsTrigger value="defaults" className="gap-2">
-            <TrendingUp className="w-4 h-4" />
-            <span className="hidden sm:inline">Trading Defaults</span>
+          <TabsTrigger value="defaults" className="gap-1.5 text-xs sm:text-sm">
+            <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span className="hidden sm:inline">Defaults</span>
             <span className="sm:hidden">Defaults</span>
           </TabsTrigger>
-          <TabsTrigger value="profile" className="gap-2">
-            <User className="w-4 h-4" />
+          <TabsTrigger value="notifications" className="gap-1.5 text-xs sm:text-sm">
+            <Bell className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span className="hidden sm:inline">Notifications</span>
+            <span className="sm:hidden">Alerts</span>
+          </TabsTrigger>
+          <TabsTrigger value="profile" className="gap-1.5 text-xs sm:text-sm">
+            <User className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             Profile
           </TabsTrigger>
-          <TabsTrigger value="export" className="gap-2">
-            <Download className="w-4 h-4" />
+          <TabsTrigger value="export" className="gap-1.5 text-xs sm:text-sm">
+            <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             Export
           </TabsTrigger>
         </TabsList>
@@ -821,6 +1101,10 @@ export default function Settings() {
 
         <TabsContent value="defaults">
           <DefaultsTab />
+        </TabsContent>
+
+        <TabsContent value="notifications">
+          <NotificationsTab />
         </TabsContent>
 
         <TabsContent value="profile" className="space-y-4">

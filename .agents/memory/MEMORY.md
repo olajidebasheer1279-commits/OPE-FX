@@ -8,6 +8,7 @@
 - [Orval mutation wrapper](orval-mutation-wrapper.md) — orval wraps mutation variables in `{ data: BodyType<T> }`, so calls must be `mutate({ data: { ...fields } })` not `mutate({ ...fields })` for PATCH/POST bodies.
 - [Market Data Engine](market-data-engine.md) — live price providers (Kraken/Deriv/Finnhub/TwelveData), alert engine, SSE push; Binance geo-blocked from Replit US servers.
 - [Preview auth verification](preview-auth-verification.md) — app-preview screenshots use a separate signed-out browser context, so they cannot validate an existing Clerk session.
-- [External Clerk web auth](clerk-web-auth.md) — the API secret must match the frontend’s Clerk instance; browser web requests should use Clerk cookies, not bearer bridging.
+- [External Clerk web auth](clerk-web-auth.md) — the API secret must match the frontend's Clerk instance; browser web requests should use Clerk cookies, not bearer bridging.
 - [Imported OPE-FX setup](imported-ope-fx-setup.md) — initialize the development Drizzle schema before starting background alert and market-data services.
 - [Render Clerk build fallback](render-clerk-build-fallback.md) — Vite needs a Clerk publishable key at build time; fall back to CLERK_PUBLISHABLE_KEY to prevent pre-mount blank pages.
+- [OPE-FX PWA push setup](ope-fx-pwa-push.md) — PNG icons generated via ImageMagick `magick`; hook returns state+imperative fns; urlBase64ToUint8Array must return ArrayBuffer not Uint8Array for PushManager.subscribe.

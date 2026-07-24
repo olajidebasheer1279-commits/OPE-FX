@@ -1,19 +1,43 @@
-import { useEffect } from "react";
+/**
+ * useWebPushNotifications
+ *
+ * Manages the full Web Push lifecycle:
+ *   - Auto re-registers the subscription on mount when permission is already granted
+ *   - Exposes `enablePush()` and `disablePush()` for explicit Settings UI control
+ *   - Returns live permission/subscription state for UI rendering
+ *
+ * Push is a best-effort delivery channel. Errors here must never interrupt the
+ * existing SSE / sound / voice alert pipeline.
+ */
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@clerk/react";
 import { apiFetch } from "@/lib/apiFetch";
 import { useAlertSettings } from "./useAlertSettings";
 
-interface PushSubscriptionResponse {
-  publicKey: string;
+export type PushPermission = "loading" | "unsupported" | "default" | "granted" | "denied";
+
+export interface WebPushState {
+  /** Current Notification API permission state (or 'unsupported' / 'loading'). */
+  permission: PushPermission;
+  /** Whether this browser has an active push subscription saved on the server. */
+  isSubscribed: boolean;
+  /** Whether an async operation (subscribe / unsubscribe) is in progress. */
+  isBusy: boolean;
+  /**
+   * Request notification permission, register the SW, create a push
+   * subscription, and save it to the backend. Updates browserNotifications
+   * alert setting to true on success.
+   * Returns true if the user granted permission and the subscription was saved.
+   */
+  enablePush: () => Promise<boolean>;
+  /**
+   * Unsubscribe from push, remove the subscription from the backend, and
+   * update the browserNotifications alert setting to false.
+   */
+  disablePush: () => Promise<void>;
 }
 
-interface StoredPushSubscription {
-  endpoint: string;
-  keys: {
-    p256dh: string;
-    auth: string;
-  };
-}
+// ── Helpers ─────────────────────────────────────────────────────────────────
 
 function getBasePath(): string {
   return (import.meta.env.BASE_URL ?? "/").replace(/\/$/, "");
@@ -28,34 +52,51 @@ function isPushSupported(): boolean {
   );
 }
 
-function urlBase64ToArrayBuffer(value: string): ArrayBuffer {
+function urlBase64ToUint8Array(value: string): ArrayBuffer {
   const padding = "=".repeat((4 - (value.length % 4)) % 4);
   const base64 = (value + padding).replace(/-/g, "+").replace(/_/g, "/");
   const raw = window.atob(base64);
   const bytes = new Uint8Array(raw.length);
-  for (let index = 0; index < raw.length; index += 1) {
-    bytes[index] = raw.charCodeAt(index);
-  }
-  return bytes.buffer;
+  for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+  return bytes.buffer as ArrayBuffer;
 }
 
-function serializeSubscription(
-  subscription: PushSubscription,
-): StoredPushSubscription {
-  const json = subscription.toJSON();
+interface SubscriptionPayload {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+}
+
+function serializeSubscription(sub: PushSubscription): SubscriptionPayload {
+  const json = sub.toJSON();
   if (!json.endpoint || !json.keys?.p256dh || !json.keys.auth) {
     throw new Error("Push subscription is missing required keys");
   }
   return {
     endpoint: json.endpoint,
-    keys: {
-      p256dh: json.keys.p256dh,
-      auth: json.keys.auth,
-    },
+    keys: { p256dh: json.keys.p256dh, auth: json.keys.auth },
   };
 }
 
-async function removeSubscription(endpoint: string, base: string): Promise<void> {
+async function fetchVapidPublicKey(base: string): Promise<string | null> {
+  try {
+    const res = await apiFetch(`${base}/api/push/vapid-public-key`);
+    if (!res.ok) return null;
+    const data = (await res.json()) as { publicKey: string };
+    return data.publicKey ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function saveSubscription(payload: SubscriptionPayload, base: string): Promise<void> {
+  await apiFetch(`${base}/api/push/subscriptions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+async function deleteSubscription(endpoint: string, base: string): Promise<void> {
   await apiFetch(`${base}/api/push/subscriptions`, {
     method: "DELETE",
     headers: { "Content-Type": "application/json" },
@@ -63,95 +104,167 @@ async function removeSubscription(endpoint: string, base: string): Promise<void>
   });
 }
 
-/**
- * Keeps the current signed-in browser/device registered for backend Web Push.
- * This has no visible UI and does not replace the existing SSE/browser alert
- * delivery path.
- */
-export function useWebPushNotifications(): void {
+async function getOrRegisterSW(base: string): Promise<ServiceWorkerRegistration> {
+  const swUrl = `${base}/sw.js`;
+  const scope = base || "/";
+  const reg = await navigator.serviceWorker.register(swUrl, { scope });
+  await navigator.serviceWorker.ready;
+  return reg;
+}
+
+// ── Hook ─────────────────────────────────────────────────────────────────────
+
+export function useWebPushNotifications(): WebPushState {
   const { isSignedIn } = useAuth();
-  const { settings, loading } = useAlertSettings();
+  const { settings, updateSettings } = useAlertSettings();
+  const base = getBasePath();
 
+  const supported = isPushSupported();
+
+  const [permission, setPermission] = useState<PushPermission>(
+    supported ? "loading" : "unsupported",
+  );
+  const [isSubscribed, setIsSubscribed] = useState(false);
+  const [isBusy, setIsBusy] = useState(false);
+
+  // Hydrate permission state from Notification API on mount
   useEffect(() => {
-    if (
-      !isSignedIn ||
-      loading ||
-      !settings.browserNotifications ||
-      !isPushSupported()
-    ) {
-      return;
-    }
+    if (!supported) return;
+    setPermission(Notification.permission as NotificationPermission);
+  }, [supported]);
 
-    let cancelled = false;
-    const base = getBasePath();
-    const scope = base || "/";
-
-    void (async () => {
-      try {
-        const registration = await navigator.serviceWorker.register(
-          `${base}/sw.js`,
-          { scope },
-        );
-        await navigator.serviceWorker.ready;
-        if (cancelled) return;
-
-        let permission = Notification.permission;
-        if (permission === "default") {
-          permission = await Notification.requestPermission();
-        }
-        if (permission !== "granted" || cancelled) return;
-
-        const keyResponse = await apiFetch(`${base}/api/push/vapid-public-key`);
-        if (!keyResponse.ok) return;
-        const { publicKey } =
-          (await keyResponse.json()) as PushSubscriptionResponse;
-        if (!publicKey || cancelled) return;
-
-        let subscription = await registration.pushManager.getSubscription();
-        if (!subscription) {
-          subscription = await registration.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: urlBase64ToArrayBuffer(publicKey),
-          });
-        }
-        if (cancelled) return;
-
-        const payload = serializeSubscription(subscription);
-        await apiFetch(`${base}/api/push/subscriptions`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-      } catch {
-        // Push is an optional delivery channel. Existing SSE/browser
-        // notifications continue to work when a browser blocks Push API.
-      }
-    })();
-
+  // Track permission changes (e.g. user changes setting in browser UI)
+  useEffect(() => {
+    if (!supported || typeof PermissionStatus === "undefined") return;
+    let descriptor: PermissionStatus | null = null;
+    navigator.permissions
+      .query({ name: "notifications" as PermissionName })
+      .then((ps) => {
+        descriptor = ps;
+        ps.onchange = () => setPermission(ps.state as PushPermission);
+      })
+      .catch(() => {/* Firefox may not support permissions.query for notifications */});
     return () => {
-      cancelled = true;
+      if (descriptor) descriptor.onchange = null;
     };
-  }, [isSignedIn, loading, settings.browserNotifications]);
+  }, [supported]);
 
+  // Check whether we already have a live subscription
+  const cancelAutoRef = useRef(false);
   useEffect(() => {
-    if (!isSignedIn || settings.browserNotifications || !isPushSupported()) {
-      return;
-    }
+    if (!supported || !isSignedIn) return;
+    cancelAutoRef.current = false;
 
-    const base = getBasePath();
-    const scope = base || "/";
     void (async () => {
       try {
-        const registration = await navigator.serviceWorker.getRegistration(scope);
-        const subscription = await registration?.pushManager.getSubscription();
-        if (subscription) {
-          const { endpoint } = serializeSubscription(subscription);
-          await removeSubscription(endpoint, base);
-          await subscription.unsubscribe();
+        const scope = base || "/";
+        const reg = await navigator.serviceWorker.getRegistration(scope);
+        if (!reg || cancelAutoRef.current) return;
+
+        const sub = await reg.pushManager.getSubscription();
+        if (cancelAutoRef.current) return;
+
+        if (sub) {
+          // Re-sync the existing subscription with the server (endpoint may rotate)
+          setIsSubscribed(true);
+          if (Notification.permission === "granted") {
+            const payload = serializeSubscription(sub);
+            await saveSubscription(payload, base);
+          }
+        } else {
+          setIsSubscribed(false);
+          // Auto-subscribe if the user has browserNotifications enabled and
+          // permission is already granted (no new prompt needed)
+          if (settings.browserNotifications && Notification.permission === "granted") {
+            const key = await fetchVapidPublicKey(base);
+            if (!key || cancelAutoRef.current) return;
+            const freshReg = await getOrRegisterSW(base);
+            if (cancelAutoRef.current) return;
+            const newSub = await freshReg.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey: urlBase64ToUint8Array(key),
+            });
+            if (cancelAutoRef.current) return;
+            await saveSubscription(serializeSubscription(newSub), base);
+            setIsSubscribed(true);
+          }
         }
       } catch {
-        // The setting is still saved by the existing alert-settings pipeline.
+        /* best-effort */
       }
     })();
-  }, [isSignedIn, settings.browserNotifications]);
+
+    return () => { cancelAutoRef.current = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSignedIn, supported, base]);
+
+  // ── enablePush ─────────────────────────────────────────────────────────────
+
+  const enablePush = useCallback(async (): Promise<boolean> => {
+    if (!supported || isBusy) return false;
+    setIsBusy(true);
+    try {
+      // 1. Request permission (shows the browser prompt if "default")
+      let perm = Notification.permission;
+      if (perm === "default") {
+        perm = await Notification.requestPermission();
+      }
+      setPermission(perm as PushPermission);
+      if (perm !== "granted") return false;
+
+      // 2. Register / get the service worker
+      const reg = await getOrRegisterSW(base);
+
+      // 3. Fetch VAPID public key from our server
+      const key = await fetchVapidPublicKey(base);
+      if (!key) throw new Error("Push not configured on server");
+
+      // 4. Subscribe with the push manager
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(key),
+        });
+      }
+
+      // 5. Save the subscription to our backend
+      await saveSubscription(serializeSubscription(sub), base);
+      setIsSubscribed(true);
+
+      // 6. Persist the preference in alert settings
+      await updateSettings({ browserNotifications: true });
+
+      return true;
+    } catch {
+      return false;
+    } finally {
+      setIsBusy(false);
+    }
+  }, [supported, isBusy, base, updateSettings]);
+
+  // ── disablePush ────────────────────────────────────────────────────────────
+
+  const disablePush = useCallback(async (): Promise<void> => {
+    if (!supported || isBusy) return;
+    setIsBusy(true);
+    try {
+      const scope = base || "/";
+      const reg = await navigator.serviceWorker.getRegistration(scope);
+      const sub = await reg?.pushManager.getSubscription();
+      if (sub) {
+        const { endpoint } = serializeSubscription(sub);
+        await deleteSubscription(endpoint, base);
+        await sub.unsubscribe();
+      }
+      setIsSubscribed(false);
+      await updateSettings({ browserNotifications: false });
+    } catch {
+      /* best-effort */
+    } finally {
+      setIsBusy(false);
+    }
+  }, [supported, isBusy, base, updateSettings]);
+
+  return { permission, isSubscribed, isBusy, enablePush, disablePush };
 }
