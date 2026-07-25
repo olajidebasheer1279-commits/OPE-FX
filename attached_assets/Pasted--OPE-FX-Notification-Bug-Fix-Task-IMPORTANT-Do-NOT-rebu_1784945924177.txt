@@ -1,0 +1,140 @@
+# OPE-FX Notification Bug Fix Task
+
+## IMPORTANT
+
+Do NOT rebuild or replace the existing notification system.
+
+The notification system is already implemented and working.
+
+Only fix the issues listed below.
+
+---
+
+# Bug 1 — Push Subscription Failure
+
+Current behaviour:
+
+- iOS asks:
+  "Allow OPE-FX to send notifications?"
+- Permission is granted.
+- OPE-FX appears under iPhone Settings → Notifications.
+- Lock Screen, Notification Centre, Banners and Sounds are all enabled.
+
+However...
+
+Inside:
+
+Settings → Alerts → Push Notifications
+
+Tapping:
+
+Enable Notifications
+
+returns
+
+"Something went wrong. Please try again or check your connection."
+
+The page never changes to:
+
+Notifications Active
+
+or
+
+Subscribed.
+
+Price alerts are still saved into the in-app notification centre.
+
+This proves:
+
+- Alert engine works.
+- Database works.
+- Notification centre works.
+
+The failure is only during push subscription.
+
+Investigate:
+
+- Service Worker registration
+- PushManager.subscribe()
+- VAPID key loading/conversion
+- Backend subscription endpoint
+- Database save
+- UI state update
+
+Replace the generic error with the real error.
+
+---
+
+# Bug 2 — Background Push
+
+Current behaviour:
+
+If OPE-FX is open:
+
+✔ Notification appears immediately.
+
+If OPE-FX is:
+
+- closed
+- on lock screen
+- another app is open
+
+No push notification appears.
+
+Later, reopening OPE-FX shows all notifications inside the app.
+
+This means:
+
+The alert engine created the notification.
+
+But the background push delivery failed.
+
+Trace the entire push flow.
+
+Verify:
+
+Backend
+↓
+Subscription lookup
+↓
+Web Push request
+↓
+Service Worker push event
+↓
+iOS notification
+
+Fix only the failing step.
+
+---
+
+# Bug 3 — Notification Drawer Scrolling
+
+Current behaviour:
+
+Opening the notification drawer:
+
+Trying to scroll the notification list scrolls the page behind instead.
+
+Expected:
+
+- Drawer scrolls independently.
+- Background page is locked while drawer is open.
+- Long notification lists scroll normally.
+- Header and action buttons remain fixed.
+- Works on iPhone Safari and installed PWA.
+
+---
+
+## Preserve Existing Features
+
+Do NOT remove or rewrite:
+
+- PWA support
+- Service Worker
+- Push notification architecture
+- Alert Engine
+- Notification Centre
+- Notification Bell
+- Database schema
+
+Only fix the listed issues.
