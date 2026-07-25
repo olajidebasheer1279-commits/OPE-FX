@@ -30,6 +30,23 @@ Both are set in `artifacts/api-server/src/lib/push-service.ts` inside `_deliverT
 
 PNG icons were generated via `magick` (ImageMagick v7 CLI). The command is `magick <source> -resize 192x192 icon-192.png`.
 
-## pushsubscriptionchange — auth limitation
+## VAPID public key endpoint must NOT require authentication
 
-The `pushsubscriptionchange` handler in `sw.js` re-subscribes and POSTs to `/api/push/subscriptions` with `credentials: "include"`. Clerk uses bearer tokens (not cookies), so this POST will be unauthenticated (401) if the subscription rotates while the app is closed. The subscription will be re-created on next app open via the auto-sync in `useWebPushNotifications`.
+**Root cause of Enable Notifications failure (confirmed via curl diagnostic):**
+
+`GET /api/push/vapid-public-key` was protected with `requireAuth`. Clerk in dev mode responds with `x-clerk-auth-reason: dev-browser-missing` in non-browser contexts (service workers, curl). This caused:
+
+1. **Initial Enable flow on iOS/Android PWA installs** — `fetchVapidPublicKey` returned `null` → `enablePush()` threw "Push not configured on server — VAPID keys may be missing" → UI stayed at Enable button, never reaching "Notifications Active"
+2. **`pushsubscriptionchange` SW handler** — SW context has no Clerk cookies → 401 → can't fetch VAPID key → subscription rotation silently fails → push stops delivering after first rotation
+
+**Fix:** Removed `requireAuth` from this endpoint. The VAPID application server key is a *public* cryptographic key by design. The `POST /api/push/subscriptions` (saves subscription) and `DELETE /api/push/subscriptions` still require auth.
+
+**Why:** VAPID public keys are meant to be publicly distributed. Protecting them with session auth creates a circular dependency (you need auth to get the key, but you need the key to set up push which is needed before login in some flows). Standard Web Push practice treats the VAPID public key as a public configuration value.
+
+## enablePush() — always create fresh subscription
+
+`enablePush()` previously reused an existing `PushSubscription` via `pushManager.getSubscription()`. If the VAPID key pair had rotated since the subscription was created, all push deliveries would silently 401 from the push service (key mismatch) even though the Enable flow appeared to succeed.
+
+**Fix:** In `enablePush()` (explicit user action), unsubscribe any existing subscription first, then create a fresh one with the current VAPID public key. The auto-sync background effect still reuses existing subscriptions (correct for background re-sync).
+
+**Why:** On explicit Enable, the user is requesting a fresh setup. A fresh subscription guarantees it uses the current VAPID key pair. Background auto-sync is lower risk and doesn't need this behaviour.

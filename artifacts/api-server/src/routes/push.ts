@@ -15,7 +15,13 @@ const SubscriptionBody = z.object({
   }),
 });
 
-router.get("/push/vapid-public-key", requireAuth, (_req, res): void => {
+// NOTE: The VAPID application server key is a *public* cryptographic key.
+// It must not require authentication — service workers and first-time visitors
+// need it to create push subscriptions before a session cookie exists.
+// Protecting this endpoint with requireAuth silently breaks subscription
+// rotation (pushsubscriptionchange) and the initial Enable flow on iOS/Android
+// PWA installs where the Clerk dev-browser cookie is absent.
+router.get("/push/vapid-public-key", (_req, res): void => {
   const key = getVapidPublicKey();
   if (!key) {
     res.status(503).json({ error: "Web Push is not configured" });

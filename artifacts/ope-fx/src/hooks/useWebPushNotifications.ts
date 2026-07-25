@@ -236,14 +236,18 @@ export function useWebPushNotifications(): WebPushState {
       const key = await fetchVapidPublicKey(base);
       if (!key) throw new Error("Push not configured on server — VAPID keys may be missing");
 
-      // 4. Subscribe with the push manager
-      let sub = await reg.pushManager.getSubscription();
-      if (!sub) {
-        sub = await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(key),
-        });
+      // 4. Force a fresh subscription so the browser endpoint always binds to the
+      // current VAPID public key. Reusing an existing subscription is not safe here:
+      // if the VAPID key pair was rotated since the subscription was created, the
+      // push service will reject every delivery attempt with a 401 (silent failure).
+      const existing = await reg.pushManager.getSubscription();
+      if (existing) {
+        await existing.unsubscribe();
       }
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(key),
+      });
 
       // 5. Save the subscription to our backend (throws on non-2xx)
       await saveSubscription(serializeSubscription(sub), base);
