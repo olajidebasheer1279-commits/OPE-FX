@@ -29,6 +29,13 @@
       "when": 1784826000000,
       "tag": "0003_push_subscriptions",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1784945503122,
+      "tag": "0004_amusing_jackpot",
+      "breakpoints": true
     }
   ]
 }

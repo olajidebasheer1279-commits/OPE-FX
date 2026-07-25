@@ -36,11 +36,33 @@ All three workflows start automatically:
 
 ## Database migrations
 
-Run schema migrations against Replit's built-in PostgreSQL:
+### Local development (Replit)
+
+Replit's built-in PostgreSQL is used **only** for local development. Its `DATABASE_URL` is runtime-managed and must never be used for production.
+
+To apply the current schema to the local dev database:
 
 ```bash
-pnpm --filter @workspace/db run push
+node lib/db/migrate.mjs
 ```
+
+This runs all pending SQL migrations from `lib/db/drizzle/` via drizzle-orm's migrator, which tracks applied migrations in `__drizzle_migrations`. It is safe to run repeatedly.
+
+> **Do not use `drizzle-kit push`** — it syncs schema without generating migration files and bypasses the migration tracker, making it incompatible with the Render production database.
+
+### Adding a schema change
+
+Generate a new SQL migration file (do **not** use `push`):
+
+```bash
+pnpm --filter @workspace/db run generate
+```
+
+This creates a new file in `lib/db/drizzle/` and updates the journal. Review the generated SQL, add `IF NOT EXISTS` / `ADD COLUMN IF NOT EXISTS` guards where appropriate for safety, then commit it.
+
+### Production (Render)
+
+Render's production `DATABASE_URL` is configured in the Render dashboard and must not be touched here. Migrations are applied to production by running `node lib/db/migrate.mjs` in the Render deploy pipeline (see `render.yaml`). All migration files use idempotent guards so they are safe to apply against databases previously synced via `drizzle-kit push`.
 
 ## User preferences
 
