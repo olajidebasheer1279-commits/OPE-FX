@@ -1,5 +1,5 @@
 /* OPE-FX Service Worker — PWA shell cache + Web Push handler */
-const CACHE_VERSION = "v2";
+const CACHE_VERSION = "v3";
 const STATIC_CACHE = `ope-fx-shell-${CACHE_VERSION}`;
 const STATIC_ASSETS = ["/", "/index.html", "/manifest.json", "/logo.svg", "/favicon.svg", "/icon-192.png", "/apple-touch-icon.png"];
 
@@ -64,28 +64,42 @@ self.addEventListener("push", (event) => {
     payload = {};
   }
 
-  const title = payload.title || "OPE-FX Alert";
-  const body = payload.body || "A monitored alert has fired.";
-  const alertId = payload.alertId;
-  const symbol = payload.symbol;
+  const title = payload.title || "OPE-FX";
+  const body  = payload.body  || "You have a new notification.";
+
+  // Price-alert specific fields (existing behaviour)
+  const alertId     = payload.alertId;
+  const symbol      = payload.symbol;
   const triggerName = payload.triggerName;
+
+  // Generic notification fields (new)
+  const notifId  = payload.notifId;
+  const destUrl  = payload.url || "/dashboard";
+
+  // Dedup tag: price-alert > generic-notif > fallback
+  const tag = alertId
+    ? `ope-fx-alert-${alertId}`
+    : notifId
+    ? `ope-fx-notif-${notifId}`
+    : "ope-fx-notification";
 
   const options = {
     body,
     icon: "/icon-192.png",
     badge: "/favicon.svg",
-    tag: alertId ? `ope-fx-alert-${alertId}` : "ope-fx-alert",
+    tag,
     renotify: true,
     requireInteraction: false,
     silent: false,
     data: {
-      url: alertId ? `/dashboard` : "/dashboard",
+      url: destUrl,
       alertId,
+      notifId,
       symbol,
       triggerName,
     },
     actions: [
-      { action: "view", title: "View Dashboard" },
+      { action: "view", title: "Open" },
       { action: "dismiss", title: "Dismiss" },
     ],
   };

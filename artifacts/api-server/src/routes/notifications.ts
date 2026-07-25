@@ -1,14 +1,16 @@
 import { Router, type IRouter } from "express";
-import { and, desc, eq, gte, lte, isNull } from "drizzle-orm";
+import { and, desc, eq, gte } from "drizzle-orm";
 import {
   db,
   notificationsTable,
   tradesTable,
   journalsTable,
   reviewsTable,
+  alertSettingsTable,
 } from "@workspace/db";
 import { requireAuth } from "../middlewares/requireAuth";
 import { getOrCreateDefaultAccount } from "../lib/accounts";
+import { sendNotifPush } from "../lib/push-service.js";
 
 const router: IRouter = Router();
 
@@ -152,8 +154,27 @@ router.delete(
 
       res.sendStatus(204);
     } catch (err) {
-      req.log.error({ err }, "Error deleting notification" );
+      req.log.error({ err }, "Error deleting notification");
       res.status(500).json({ error: "Failed to delete notification" });
+    }
+  },
+);
+
+/** DELETE /notifications — delete all notifications for the current user */
+router.delete(
+  "/notifications",
+  requireAuth,
+  async (req, res): Promise<void> => {
+    try {
+      const result = await db
+        .delete(notificationsTable)
+        .where(eq(notificationsTable.userId, req.userId!))
+        .returning({ id: notificationsTable.id });
+
+      res.json({ deleted: result.length });
+    } catch (err) {
+      req.log.error({ err }, "Error clearing all notifications");
+      res.status(500).json({ error: "Failed to clear notifications" });
     }
   },
 );
@@ -172,6 +193,16 @@ router.post(
     const created: string[] = [];
 
     try {
+      // Fetch push preference once — used by createNotif below.
+      // If the user has no settings row yet, default to false (safe; they
+      // haven't opted in to push yet).
+      const [userSettings] = await db
+        .select({ browserNotifications: alertSettingsTable.browserNotifications })
+        .from(alertSettingsTable)
+        .where(eq(alertSettingsTable.userId, userId))
+        .limit(1);
+      const pushEnabled = userSettings?.browserNotifications ?? false;
+
       const account = await getOrCreateDefaultAccount(userId);
 
       // Helper: check if a notification of this type was created in the last N hours
@@ -180,17 +211,6 @@ router.post(
         hoursBack: number,
       ): Promise<boolean> {
         const since = new Date(now.getTime() - hoursBack * 60 * 60 * 1000);
-        const [existing] = await db
-          .select()
-          .from(notificationsTable)
-          .where(
-            and(
-              eq(notificationsTable.userId, userId),
-              gte(notificationsTable.createdAt, since),
-            ),
-          )
-          .limit(1);
-        // Filter in JS since LIKE isn't available here without raw sql
         const rows = await db
           .select()
           .from(notificationsTable)
@@ -203,19 +223,33 @@ router.post(
         return rows.some((r) => r.title.startsWith(titlePrefix));
       }
 
+      /**
+       * Insert a notification and, when the user has push enabled, fire a
+       * background push to all their registered devices.
+       * url is optional — the SW defaults to /dashboard when absent.
+       */
       async function createNotif(
         title: string,
         message: string,
         type: string,
+        url?: string,
       ) {
-        await db.insert(notificationsTable).values({
-          userId,
-          title,
-          message,
-          type,
-          isRead: false,
-        });
+        const [row] = await db
+          .insert(notificationsTable)
+          .values({ userId, title, message, type, isRead: false })
+          .returning({ id: notificationsTable.id });
+
         created.push(title);
+
+        if (pushEnabled) {
+          void sendNotifPush(userId, {
+            title,
+            body: message,
+            type,
+            notifId: row?.id,
+            url,
+          });
+        }
       }
 
       // 1. Journal reminder — if no entry for today
@@ -234,6 +268,7 @@ router.post(
             "📝 Journal Reminder",
             "You haven't written today's journal entry. Reflect on your trading day.",
             "reminder",
+            "/journal",
           );
         }
       }
@@ -264,6 +299,7 @@ router.post(
               "📊 Weekly Review",
               "End of week — time to write your weekly performance review.",
               "reminder",
+              "/review",
             );
           }
         }
@@ -302,6 +338,7 @@ router.post(
               `🏆 Profit Streak: ${streak} Wins`,
               `You're on a ${streak}-trade winning streak! Stay disciplined and don't over-trade.`,
               "success",
+              "/dashboard",
             );
           }
         }
@@ -313,6 +350,7 @@ router.post(
               `⚠️ Loss Streak Alert: ${streak} Losses`,
               `You have ${streak} consecutive losses. Consider pausing and reviewing your setups.`,
               "warning",
+              "/dashboard",
             );
           }
         }
@@ -329,11 +367,14 @@ router.post(
                 "⚠️ Risk Management Alert",
                 `Your average risk per trade is ${avgRisk.toFixed(1)}% — above the recommended 2%. Reduce position size.`,
                 "warning",
+                "/dashboard",
               );
             }
           }
         }
       }
+
+      void account; // used only to ensure default account exists
 
       res.json({ created: created.length, notifications: created });
     } catch (err) {

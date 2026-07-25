@@ -24,6 +24,7 @@ import type {
   AccountSettingsInput,
   AnalyticsSummary,
   AssistantSummary,
+  ClearAllNotifications200,
   DashboardSummary,
   ErrorResponse,
   GenerateNotifications200,
@@ -2214,6 +2215,77 @@ export function useListNotifications<TData = Awaited<ReturnType<typeof listNotif
 
 
 
+
+export const getClearAllNotificationsUrl = () => {
+
+
+
+
+  return `/api/notifications`
+}
+
+/**
+ * @summary Delete all notifications for the current user
+ */
+export const clearAllNotifications = async ( options?: RequestInit): Promise<ClearAllNotifications200> => {
+
+  return customFetch<ClearAllNotifications200>(getClearAllNotificationsUrl(),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getClearAllNotificationsMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof clearAllNotifications>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof clearAllNotifications>>, TError,void, TContext> => {
+
+const mutationKey = ['clearAllNotifications'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof clearAllNotifications>>, void> = () => {
+
+
+          return  clearAllNotifications(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ClearAllNotificationsMutationResult = NonNullable<Awaited<ReturnType<typeof clearAllNotifications>>>
+
+    export type ClearAllNotificationsMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Delete all notifications for the current user
+ */
+export const useClearAllNotifications = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof clearAllNotifications>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof clearAllNotifications>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getClearAllNotificationsMutationOptions(options));
+    }
 
 export const getMarkNotificationReadUrl = (id: number,) => {
 

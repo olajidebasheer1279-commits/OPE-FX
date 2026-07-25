@@ -932,6 +932,14 @@ export const ListNotificationsResponse = zod.array(ListNotificationsResponseItem
 
 
 /**
+ * @summary Delete all notifications for the current user
+ */
+export const ClearAllNotificationsResponse = zod.object({
+  "deleted": zod.number()
+})
+
+
+/**
  * @summary Mark a notification as read
  */
 export const MarkNotificationReadParams = zod.object({

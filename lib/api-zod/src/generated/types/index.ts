@@ -18,6 +18,7 @@ export * from './assistantStreakInfoType';
 export * from './assistantSummary';
 export * from './assistantWarning';
 export * from './assistantWarningLevel';
+export * from './clearAllNotifications200';
 export * from './dashboardSummary';
 export * from './dayOfWeekStat';
 export * from './directionBreakdown';

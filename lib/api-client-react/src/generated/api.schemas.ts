@@ -843,6 +843,10 @@ export type GetOprScoreParams = {
 period?: string;
 };
 
+export type ClearAllNotifications200 = {
+  deleted: number;
+};
+
 export type MarkAllNotificationsRead200 = {
   success: boolean;
 };

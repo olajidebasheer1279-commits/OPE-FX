@@ -757,6 +757,26 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: clearAllNotifications
+      tags: [notifications]
+      summary: Delete all notifications for the current user
+      responses:
+        "200":
+          description: Number of deleted notifications
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [deleted]
+                properties:
+                  deleted: { type: integer }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /notifications/{id}/read:
     patch:
       operationId: markNotificationRead

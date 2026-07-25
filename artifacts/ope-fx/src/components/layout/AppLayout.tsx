@@ -31,6 +31,7 @@ import {
   useMarkNotificationRead,
   useMarkAllNotificationsRead,
   useDeleteNotification,
+  useClearAllNotifications,
   useGenerateNotifications,
   getListNotificationsQueryKey,
 } from "@workspace/api-client-react";
@@ -127,52 +128,138 @@ const formatCurrency = (value: number) =>
     minimumFractionDigits: 2,
   }).format(value);
 
+// Local types — mirrors the server schema; avoids relying on the unbuilt lib dist
+type AppNotif = {
+  id: number;
+  title: string;
+  message: string;
+  type: string;
+  isRead: boolean;
+  createdAt: string;
+};
+type NSnapshot = { prev: unknown };
+
 function NotificationBell() {
   const [open, setOpen] = useState(false);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [clearConfirm, setClearConfirm] = useState(false);
 
-  const { data: notifications = [] } = useListNotifications({
-    query: { refetchInterval: 60000, queryKey: ["notifications"] },
+  const QK = getListNotificationsQueryKey();
+
+  const { data: _notifData } = useListNotifications({
+    query: { refetchInterval: 60_000 },
   });
+  const notifications: AppNotif[] = (_notifData as AppNotif[] | undefined) ?? [];
 
+  // ── Optimistic helpers ──────────────────────────────────────────────────
+  async function snapshot(): Promise<NSnapshot> {
+    await queryClient.cancelQueries({ queryKey: QK });
+    return { prev: queryClient.getQueryData(QK) };
+  }
+  function rollback(_e: unknown, _v: unknown, ctx: NSnapshot | undefined) {
+    queryClient.setQueryData(QK, ctx?.prev);
+  }
+  function refetch() {
+    queryClient.invalidateQueries({ queryKey: QK });
+  }
+
+  // ── Mutations ───────────────────────────────────────────────────────────
   const generateMutation = useGenerateNotifications({
-    mutation: {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() });
-      },
-    },
+    mutation: { onSuccess: refetch },
   });
 
   const markRead = useMarkNotificationRead({
     mutation: {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() });
+      onMutate: async ({ id }: { id: number }) => {
+        const ctx = await snapshot();
+        queryClient.setQueryData<AppNotif[]>(QK, (old) =>
+          (old ?? []).map((n) => (n.id === id ? { ...n, isRead: true } : n)),
+        );
+        return ctx;
       },
+      onError: rollback,
+      onSettled: refetch,
     },
   });
 
   const markAllRead = useMarkAllNotificationsRead({
     mutation: {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() });
+      onMutate: async () => {
+        const ctx = await snapshot();
+        queryClient.setQueryData<AppNotif[]>(QK, (old) =>
+          (old ?? []).map((n) => ({ ...n, isRead: true })),
+        );
+        return ctx;
       },
+      onError: rollback,
+      onSettled: refetch,
     },
   });
 
   const deleteNotif = useDeleteNotification({
     mutation: {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() });
+      onMutate: async ({ id }: { id: number }) => {
+        const ctx = await snapshot();
+        queryClient.setQueryData<AppNotif[]>(QK, (old) =>
+          (old ?? []).filter((n) => n.id !== id),
+        );
+        return ctx;
+      },
+      onError: rollback,
+      onSettled: refetch,
+    },
+  });
+
+  const clearAll = useClearAllNotifications({
+    mutation: {
+      onMutate: async () => {
+        const ctx = await snapshot();
+        queryClient.setQueryData(QK, []);
+        return ctx;
+      },
+      onError: rollback,
+      onSettled: () => {
+        refetch();
+        setClearConfirm(false);
+        setSelectMode(false);
+        setSelectedIds(new Set());
       },
     },
   });
 
-  // Generate notifications on mount (once per session)
+  // Generate on mount (once per session)
   useEffect(() => {
     generateMutation.mutate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Reset selection + confirm when popover closes
+  useEffect(() => {
+    if (!open) {
+      setSelectMode(false);
+      setSelectedIds(new Set());
+      setClearConfirm(false);
+    }
+  }, [open]);
+
+  // ── Select helpers ──────────────────────────────────────────────────────
+  function toggleSelect(id: number) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  function deleteSelected() {
+    selectedIds.forEach((id) => deleteNotif.mutate({ id }));
+    setSelectMode(false);
+    setSelectedIds(new Set());
+  }
+
   const unread = notifications.filter((n) => !n.isRead).length;
+  const hasAny = notifications.length > 0;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -191,83 +278,218 @@ function NotificationBell() {
           )}
         </Button>
       </PopoverTrigger>
+
       <PopoverContent className="w-80 sm:w-96 p-0" align="end" sideOffset={8}>
+        {/* ── Header ── */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
           <div className="flex items-center gap-2">
             <Bell className="w-4 h-4 text-primary" />
             <span className="font-semibold text-sm">Notifications</span>
             {unread > 0 && (
-              <Badge className="h-5 px-1.5 text-[10px] bg-primary/20 text-primary border-0">{unread} new</Badge>
+              <Badge className="h-5 px-1.5 text-[10px] bg-primary/20 text-primary border-0">
+                {unread} new
+              </Badge>
             )}
           </div>
-          {unread > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 text-xs gap-1 text-muted-foreground"
-              onClick={() => markAllRead.mutate()}
-            >
-              <CheckCheck className="w-3.5 h-3.5" />
-              Mark all read
-            </Button>
-          )}
+
+          <div className="flex items-center gap-1">
+            {!selectMode && (
+              <>
+                {unread > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs gap-1 text-muted-foreground"
+                    onClick={() => markAllRead.mutate()}
+                    disabled={markAllRead.isPending}
+                  >
+                    <CheckCheck className="w-3.5 h-3.5" />
+                    Mark all read
+                  </Button>
+                )}
+                {hasAny && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs text-muted-foreground px-2"
+                    onClick={() => setSelectMode(true)}
+                  >
+                    Select
+                  </Button>
+                )}
+              </>
+            )}
+
+            {selectMode && (
+              <>
+                {selectedIds.size > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs gap-1 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={deleteSelected}
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    Delete ({selectedIds.size})
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 p-0 text-muted-foreground"
+                  onClick={() => {
+                    setSelectMode(false);
+                    setSelectedIds(new Set());
+                  }}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </Button>
+              </>
+            )}
+          </div>
         </div>
 
+        {/* ── List ── */}
         <ScrollArea className="max-h-[360px]">
           {notifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
               <Bell className="w-8 h-8 text-muted-foreground/40 mb-2" />
               <p className="text-sm text-muted-foreground">No notifications yet</p>
-              <p className="text-xs text-muted-foreground/60">Activity reminders will appear here</p>
+              <p className="text-xs text-muted-foreground/60">
+                Activity reminders will appear here
+              </p>
             </div>
           ) : (
             <div className="divide-y divide-border">
               {notifications.map((n) => (
                 <div
                   key={n.id}
-                  className={`flex gap-3 px-4 py-3 hover:bg-muted/20 transition-colors group ${!n.isRead ? "bg-primary/5" : ""}`}
+                  className={`flex gap-3 px-4 py-3 transition-colors group ${
+                    !n.isRead ? "bg-primary/5" : ""
+                  } ${selectMode ? "cursor-pointer hover:bg-muted/30" : "hover:bg-muted/20"} ${
+                    selectMode && selectedIds.has(n.id) ? "bg-primary/10 hover:bg-primary/10" : ""
+                  }`}
+                  onClick={selectMode ? () => toggleSelect(n.id) : undefined}
                 >
+                  {/* Select checkbox */}
+                  {selectMode && (
+                    <div className="flex items-center shrink-0 pt-0.5">
+                      <div
+                        className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
+                          selectedIds.has(n.id)
+                            ? "bg-primary border-primary"
+                            : "border-muted-foreground/40"
+                        }`}
+                      >
+                        {selectedIds.has(n.id) && (
+                          <CheckCheck className="w-2.5 h-2.5 text-primary-foreground" />
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
-                      <p className={`text-sm leading-snug ${!n.isRead ? "font-medium text-foreground" : "text-muted-foreground"}`}>
+                      <p
+                        className={`text-sm leading-snug ${
+                          !n.isRead
+                            ? "font-medium text-foreground"
+                            : "text-muted-foreground"
+                        }`}
+                      >
                         {n.title}
                       </p>
-                      {!n.isRead && (
+                      {!n.isRead && !selectMode && (
                         <div className="w-2 h-2 rounded-full bg-primary shrink-0 mt-1" />
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{n.message}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                      {n.message}
+                    </p>
                     <p className="text-[10px] text-muted-foreground/60 mt-1">
                       {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}
                     </p>
                   </div>
-                  <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                    {!n.isRead && (
+
+                  {/* Per-row actions (hidden in select mode) */}
+                  {!selectMode && (
+                    <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                      {!n.isRead && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            markRead.mutate({ id: n.id });
+                          }}
+                          title="Mark as read"
+                        >
+                          <CheckCheck className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-6 w-6"
-                        onClick={() => markRead.mutate({ id: n.id })}
-                        title="Mark as read"
+                        className="h-6 w-6 text-destructive/60 hover:text-destructive"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteNotif.mutate({ id: n.id });
+                        }}
+                        title="Delete"
                       >
-                        <CheckCheck className="w-3.5 h-3.5" />
+                        <Trash2 className="w-3.5 h-3.5" />
                       </Button>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 text-destructive/60 hover:text-destructive"
-                      onClick={() => deleteNotif.mutate({ id: n.id })}
-                      title="Delete"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
-                  </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
           )}
         </ScrollArea>
+
+        {/* ── Footer: Clear All ── */}
+        {hasAny && !selectMode && (
+          <>
+            <Separator />
+            <div className="px-4 py-2.5">
+              {clearConfirm ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground flex-1">
+                    Delete all {notifications.length} notification{notifications.length !== 1 ? "s" : ""}?
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs text-muted-foreground"
+                    onClick={() => setClearConfirm(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => clearAll.mutate()}
+                    disabled={clearAll.isPending}
+                  >
+                    Delete all
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs gap-1.5 text-muted-foreground hover:text-destructive w-full justify-start"
+                  onClick={() => setClearConfirm(true)}
+                >
+                  <Trash2 className="w-3 h-3" />
+                  Clear all notifications
+                </Button>
+              )}
+            </div>
+          </>
+        )}
       </PopoverContent>
     </Popover>
   );
