@@ -156,7 +156,7 @@ function NotificationBell() {
   const QK = getListNotificationsQueryKey();
 
   const { data: _notifData } = useListNotifications({
-    query: { refetchInterval: 60_000 },
+    query: { queryKey: QK, refetchInterval: 60_000 },
   });
   const notifications: AppNotif[] = (_notifData as AppNotif[] | undefined) ?? [];
 

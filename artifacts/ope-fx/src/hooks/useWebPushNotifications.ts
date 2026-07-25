@@ -57,15 +57,13 @@ function isPushSupported(): boolean {
   );
 }
 
-function urlBase64ToUint8Array(value: string): Uint8Array {
+function urlBase64ToArrayBuffer(value: string): ArrayBuffer {
   const padding = "=".repeat((4 - (value.length % 4)) % 4);
   const base64 = (value + padding).replace(/-/g, "+").replace(/_/g, "/");
   const raw = window.atob(base64);
   const bytes = new Uint8Array(raw.length);
   for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
-  // Return the Uint8Array directly — iOS Safari rejects a raw ArrayBuffer as
-  // applicationServerKey even though the spec allows BufferSource.
-  return bytes;
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
 }
 
 interface SubscriptionPayload {
@@ -198,7 +196,7 @@ export function useWebPushNotifications(): WebPushState {
             if (cancelAutoRef.current) return;
             const newSub = await freshReg.pushManager.subscribe({
               userVisibleOnly: true,
-              applicationServerKey: urlBase64ToUint8Array(key),
+              applicationServerKey: urlBase64ToArrayBuffer(key),
             });
             if (cancelAutoRef.current) return;
             await saveSubscription(serializeSubscription(newSub), base);
@@ -246,7 +244,7 @@ export function useWebPushNotifications(): WebPushState {
       }
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(key),
+        applicationServerKey: urlBase64ToArrayBuffer(key),
       });
 
       // 5. Save the subscription to our backend (throws on non-2xx)
