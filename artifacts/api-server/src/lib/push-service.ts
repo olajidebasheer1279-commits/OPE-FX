@@ -76,7 +76,13 @@ async function _deliverToSubscriptions(
             },
           },
           jsonBody,
-          { TTL: ttl },
+          {
+            TTL: ttl,
+            // 'high' urgency tells APNs to wake the device immediately rather
+            // than wait for the next convenient delivery window — essential for
+            // background delivery on locked/sleeping iPhones.
+            urgency: "high",
+          },
         );
       } catch (err: unknown) {
         const statusCode =
@@ -118,7 +124,9 @@ export async function sendPushToUser(
 ): Promise<void> {
   if (!configured) return;
   try {
-    await _deliverToSubscriptions(userId, JSON.stringify(payload), 60);
+    // TTL of 300 s (5 min) gives APNs enough time to deliver to a locked/sleeping
+    // device without keeping a stale notification around too long.
+    await _deliverToSubscriptions(userId, JSON.stringify(payload), 300);
   } catch (err) {
     // Push is an optional delivery channel and must never interrupt alert
     // history, notifications, one-shot disabling, or SSE delivery.

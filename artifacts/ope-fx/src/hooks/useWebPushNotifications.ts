@@ -57,13 +57,15 @@ function isPushSupported(): boolean {
   );
 }
 
-function urlBase64ToUint8Array(value: string): ArrayBuffer {
+function urlBase64ToUint8Array(value: string): Uint8Array {
   const padding = "=".repeat((4 - (value.length % 4)) % 4);
   const base64 = (value + padding).replace(/-/g, "+").replace(/_/g, "/");
   const raw = window.atob(base64);
   const bytes = new Uint8Array(raw.length);
   for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
-  return bytes.buffer as ArrayBuffer;
+  // Return the Uint8Array directly — iOS Safari rejects a raw ArrayBuffer as
+  // applicationServerKey even though the spec allows BufferSource.
+  return bytes;
 }
 
 interface SubscriptionPayload {

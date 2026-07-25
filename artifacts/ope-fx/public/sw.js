@@ -158,7 +158,9 @@ self.addEventListener("pushsubscriptionchange", (event) => {
     const raw = atob(base64);
     const bytes = new Uint8Array(raw.length);
     for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
-    return bytes.buffer;
+    // Return Uint8Array directly — iOS Safari rejects a raw ArrayBuffer as
+    // applicationServerKey even though the spec allows BufferSource.
+    return bytes;
   }
 
   event.waitUntil(
