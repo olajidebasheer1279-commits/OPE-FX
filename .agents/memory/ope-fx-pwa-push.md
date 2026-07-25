@@ -1,42 +1,35 @@
 ---
-name: OPE-FX PWA and Push Notification setup
-description: How the Web Push + PWA install system is structured in OPE-FX.
+name: OPE-FX PWA push setup
+description: Push notification implementation details, known pitfalls, and confirmed fixes for iOS background delivery.
 ---
 
-## Key architecture
+## urlBase64ToUint8Array — must return Uint8Array, not ArrayBuffer
 
-- `useWebPushNotifications()` lives in `artifacts/ope-fx/src/hooks/useWebPushNotifications.ts`
-- It is called in TWO places:
-  1. `AppLayout.tsx` — side-effect only (auto re-subscribes on mount if already granted)
-  2. `Settings → NotificationsTab` — destructures `{ permission, isSubscribed, isBusy, enablePush, disablePush }` for the UI
-- The hook auto-syncs the subscription to the server on mount; the Settings button triggers `enablePush()` imperatively.
-- `enablePush()` → request permission → register SW → fetch VAPID key → `pushManager.subscribe()` → POST to `/api/push/subscriptions` → `updateSettings({ browserNotifications: true })`
-- `disablePush()` → unsubscribe from pushManager → DELETE `/api/push/subscriptions` → `updateSettings({ browserNotifications: false })`
+`PushManager.subscribe({ applicationServerKey })` on iOS Safari rejects a raw `ArrayBuffer` with "applicationServerKey must contain a valid P-256 public key" even though the Web Push spec allows any `BufferSource`. The fix is to return the `Uint8Array` directly (not `.buffer`).
 
-## Type gotcha
+**Applies to two places:**
+- `artifacts/ope-fx/src/hooks/useWebPushNotifications.ts` — `urlBase64ToUint8Array()` return type is `Uint8Array`
+- `artifacts/ope-fx/public/sw.js` — `pushsubscriptionchange` handler's local copy of the same function
 
-`urlBase64ToUint8Array` must return `ArrayBuffer` (not `Uint8Array`) for `PushManager.subscribe({ applicationServerKey })`. Return `bytes.buffer as ArrayBuffer`.
+**Why:** iOS WebKit's PushManager implementation rejects `ArrayBuffer` for this parameter despite the spec allowing it.
 
-## PWA icons
+## Background delivery (iOS locked/sleeping)
 
-- Generate with ImageMagick 7: `magick -background none -size NxN logo.svg output.png`
-- Command is `magick` (not `convert`; deprecated in IMv7 though still available)
-- Three PNG sizes needed: 512x512, 192x192 (manifest), 180x180 (apple-touch-icon)
-- `apple-touch-icon` linked in `index.html` with `<link rel="apple-touch-icon" href="/apple-touch-icon.png">`
+Two settings are required for background push delivery on iOS:
 
-## iOS push requirement
+1. **TTL ≥ 300s** — 60s (previous value) is too short; APNs silently drops the notification if the device can't be reached within the TTL window. Price alerts now use 300s.
+2. **urgency: "high"** — tells APNs to wake the device immediately rather than wait for a convenient delivery window (e.g. when screen turns on).
 
-Push notifications on iOS require the app to be installed via "Add to Home Screen" (iOS 16.4+). The Settings UI detects iOS + non-standalone mode and shows instructions instead of enabling the button.
+Both are set in `artifacts/api-server/src/lib/push-service.ts` inside `_deliverToSubscriptions`.
 
-## Service worker
+## PNG icons — SVG silently rejected
 
-`public/sw.js` handles: `install`, `activate`, `fetch` (shell cache), `push` (show notification), `notificationclick` (focus or open window), `pushsubscriptionchange` (re-subscribe and sync endpoint).
+`badge` in service worker notification options must be a PNG path. SVG is silently rejected by iOS and some Android versions. `/icon-192.png` is used for both `icon` and `badge`.
 
-**Why:** `pushsubscriptionchange` fires when the browser rotates the push subscription endpoint — without it, alerts would silently fail after a browser update.
+## ImageMagick icon generation
 
-## Backend
+PNG icons were generated via `magick` (ImageMagick v7 CLI). The command is `magick <source> -resize 192x192 icon-192.png`.
 
-- Push routes: `artifacts/api-server/src/routes/push.ts` (GET VAPID key, POST subscription, DELETE subscription)
-- Push delivery: `artifacts/api-server/src/lib/push-service.ts` — `sendPushToUser(userId, payload)`
-- Alert engine calls `sendPushToUser` when an alert fires
-- Stale subscriptions (404/410 from push provider) are auto-deleted
+## pushsubscriptionchange — auth limitation
+
+The `pushsubscriptionchange` handler in `sw.js` re-subscribes and POSTs to `/api/push/subscriptions` with `credentials: "include"`. Clerk uses bearer tokens (not cookies), so this POST will be unauthenticated (401) if the subscription rotates while the app is closed. The subscription will be re-created on next app open via the auto-sync in `useWebPushNotifications`.
