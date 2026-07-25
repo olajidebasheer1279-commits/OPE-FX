@@ -778,7 +778,7 @@ function ExportTab() {
 // ---------------------------------------------------------------------------
 
 function NotificationsTab() {
-  const { permission, isSubscribed, isBusy, enablePush, disablePush } =
+  const { permission, isSubscribed, isBusy, errorMessage, enablePush, disablePush } =
     useWebPushNotifications();
   const [lastResult, setLastResult] = useState<"success" | "denied" | "error" | null>(null);
   const { toast } = useToast();
@@ -951,9 +951,9 @@ function NotificationsTab() {
 
           {/* Error flash */}
           {lastResult === "error" && (
-            <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-3 flex items-center gap-2 text-sm text-red-300">
-              <AlertTriangle className="w-4 h-4 shrink-0" />
-              Something went wrong. Please try again or check your connection.
+            <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-3 flex items-start gap-2 text-sm text-red-300">
+              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>{errorMessage ?? "Something went wrong. Please try again or check your connection."}</span>
             </div>
           )}
 

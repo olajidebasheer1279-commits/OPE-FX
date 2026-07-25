@@ -23,7 +23,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import {
   useGetDashboardSummary,
@@ -142,6 +141,15 @@ type NSnapshot = { prev: unknown };
 function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [selectMode, setSelectMode] = useState(false);
+
+  // Bug 3 fix: lock body scroll while the popover is open so the page behind
+  // doesn't scroll when the user tries to scroll the notification list on iOS.
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, [open]);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [clearConfirm, setClearConfirm] = useState(false);
 
@@ -350,7 +358,12 @@ function NotificationBell() {
         </div>
 
         {/* ── List ── */}
-        <ScrollArea className="max-h-[360px]">
+        {/* Bug 3 fix: plain overflow div instead of Radix ScrollArea so iOS
+            touch-scroll works inside the popover without chaining to the page. */}
+        <div
+          className="max-h-[360px] overflow-y-auto overscroll-contain"
+          style={{ WebkitOverflowScrolling: "touch" }}
+        >
           {notifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
               <Bell className="w-8 h-8 text-muted-foreground/40 mb-2" />
@@ -446,7 +459,7 @@ function NotificationBell() {
               ))}
             </div>
           )}
-        </ScrollArea>
+        </div>
 
         {/* ── Footer: Clear All ── */}
         {hasAny && !selectMode && (

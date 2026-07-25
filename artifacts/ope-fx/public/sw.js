@@ -86,11 +86,12 @@ self.addEventListener("push", (event) => {
   const options = {
     body,
     icon: "/icon-192.png",
-    badge: "/favicon.svg",
+    // badge must be PNG — SVG is silently rejected by iOS and some Android
+    badge: "/icon-192.png",
     tag,
     renotify: true,
     requireInteraction: false,
-    silent: false,
+    // silent omitted — iOS ignores it but some versions may suppress the notification
     data: {
       url: destUrl,
       alertId,
@@ -98,13 +99,20 @@ self.addEventListener("push", (event) => {
       symbol,
       triggerName,
     },
-    actions: [
-      { action: "view", title: "Open" },
-      { action: "dismiss", title: "Dismiss" },
-    ],
+    // actions omitted — not reliably supported on iOS PWA background delivery
   };
 
-  event.waitUntil(self.registration.showNotification(title, options));
+  event.waitUntil(
+    self.registration.showNotification(title, options).catch(() => {
+      // Fallback: show a minimal notification if the full one fails
+      return self.registration.showNotification("OPE-FX", {
+        body,
+        icon: "/icon-192.png",
+        tag,
+        data: { url: destUrl },
+      });
+    }),
+  );
 });
 
 /* ── Notification click ──────────────────────────────────────────────────────── */
@@ -138,12 +146,36 @@ self.addEventListener("notificationclick", (event) => {
 
 /* ── Push subscription change ────────────────────────────────────────────────── */
 
+// iOS (and other browsers) may rotate push subscriptions. When that happens,
+// we must resubscribe with the VAPID applicationServerKey — omitting it causes
+// the subscribe() call to fail, leaving the user with a stale/dead subscription.
 self.addEventListener("pushsubscriptionchange", (event) => {
-  // Re-subscribe and sync with the server if the subscription is rotated
+  const base = self.location.pathname.replace(/\/sw\.js$/, "");
+
+  function urlBase64ToUint8Array(value) {
+    const padding = "=".repeat((4 - (value.length % 4)) % 4);
+    const base64 = (value + padding).replace(/-/g, "+").replace(/_/g, "/");
+    const raw = atob(base64);
+    const bytes = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+    return bytes.buffer;
+  }
+
   event.waitUntil(
-    self.registration.pushManager
-      .subscribe({ userVisibleOnly: true })
-      .then((subscription) => {
+    (async () => {
+      try {
+        // 1. Fetch VAPID public key (required for VAPID-authenticated subscriptions)
+        const keyRes = await fetch(`${base}/api/push/vapid-public-key`, { credentials: "include" });
+        if (!keyRes.ok) return;
+        const { publicKey } = await keyRes.json();
+
+        // 2. Resubscribe with the VAPID key
+        const subscription = await self.registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(publicKey),
+        });
+
+        // 3. Sync the new subscription with the backend
         const payload = {
           endpoint: subscription.endpoint,
           keys: {
@@ -151,13 +183,15 @@ self.addEventListener("pushsubscriptionchange", (event) => {
             auth: subscription.toJSON().keys?.auth,
           },
         };
-        return fetch("/api/push/subscriptions", {
+        await fetch(`${base}/api/push/subscriptions`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
           credentials: "include",
         });
-      })
-      .catch(() => {/* best-effort */}),
+      } catch {
+        /* best-effort — subscription will be re-created on next app open */
+      }
+    })(),
   );
 });

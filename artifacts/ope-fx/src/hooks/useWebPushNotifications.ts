@@ -24,6 +24,11 @@ export interface WebPushState {
   /** Whether an async operation (subscribe / unsubscribe) is in progress. */
   isBusy: boolean;
   /**
+   * The real error message from the last failed enablePush() attempt, or null.
+   * Exposed so the UI can show the actual failure reason instead of a generic message.
+   */
+  errorMessage: string | null;
+  /**
    * Request notification permission, register the SW, create a push
    * subscription, and save it to the backend. Updates browserNotifications
    * alert setting to true on success.
@@ -89,11 +94,19 @@ async function fetchVapidPublicKey(base: string): Promise<string | null> {
 }
 
 async function saveSubscription(payload: SubscriptionPayload, base: string): Promise<void> {
-  await apiFetch(`${base}/api/push/subscriptions`, {
+  const res = await apiFetch(`${base}/api/push/subscriptions`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
+  if (!res.ok) {
+    let detail = "";
+    try {
+      const body = (await res.json()) as { error?: string };
+      detail = body.error ? ` (${body.error})` : "";
+    } catch { /* ignore parse errors */ }
+    throw new Error(`Server rejected subscription (${res.status})${detail}`);
+  }
 }
 
 async function deleteSubscription(endpoint: string, base: string): Promise<void> {
@@ -126,6 +139,7 @@ export function useWebPushNotifications(): WebPushState {
   );
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Hydrate permission state from Notification API on mount
   useEffect(() => {
@@ -203,6 +217,7 @@ export function useWebPushNotifications(): WebPushState {
   const enablePush = useCallback(async (): Promise<boolean> => {
     if (!supported || isBusy) return false;
     setIsBusy(true);
+    setErrorMessage(null);
     try {
       // 1. Request permission (shows the browser prompt if "default")
       let perm = Notification.permission;
@@ -217,7 +232,7 @@ export function useWebPushNotifications(): WebPushState {
 
       // 3. Fetch VAPID public key from our server
       const key = await fetchVapidPublicKey(base);
-      if (!key) throw new Error("Push not configured on server");
+      if (!key) throw new Error("Push not configured on server — VAPID keys may be missing");
 
       // 4. Subscribe with the push manager
       let sub = await reg.pushManager.getSubscription();
@@ -228,7 +243,7 @@ export function useWebPushNotifications(): WebPushState {
         });
       }
 
-      // 5. Save the subscription to our backend
+      // 5. Save the subscription to our backend (throws on non-2xx)
       await saveSubscription(serializeSubscription(sub), base);
       setIsSubscribed(true);
 
@@ -236,7 +251,9 @@ export function useWebPushNotifications(): WebPushState {
       await updateSettings({ browserNotifications: true });
 
       return true;
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setErrorMessage(msg);
       return false;
     } finally {
       setIsBusy(false);
@@ -248,6 +265,7 @@ export function useWebPushNotifications(): WebPushState {
   const disablePush = useCallback(async (): Promise<void> => {
     if (!supported || isBusy) return;
     setIsBusy(true);
+    setErrorMessage(null);
     try {
       const scope = base || "/";
       const reg = await navigator.serviceWorker.getRegistration(scope);
@@ -266,5 +284,5 @@ export function useWebPushNotifications(): WebPushState {
     }
   }, [supported, isBusy, base, updateSettings]);
 
-  return { permission, isSubscribed, isBusy, enablePush, disablePush };
+  return { permission, isSubscribed, isBusy, errorMessage, enablePush, disablePush };
 }
