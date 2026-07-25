@@ -57,13 +57,13 @@ function isPushSupported(): boolean {
   );
 }
 
-function urlBase64ToArrayBuffer(value: string): ArrayBuffer {
+function urlBase64ToUint8Array(value: string): Uint8Array<ArrayBuffer> {
   const padding = "=".repeat((4 - (value.length % 4)) % 4);
   const base64 = (value + padding).replace(/-/g, "+").replace(/_/g, "/");
   const raw = window.atob(base64);
-  const bytes = new Uint8Array(raw.length);
+  const bytes = new Uint8Array(new ArrayBuffer(raw.length));
   for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
-  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+  return bytes;
 }
 
 interface SubscriptionPayload {
@@ -196,7 +196,7 @@ export function useWebPushNotifications(): WebPushState {
             if (cancelAutoRef.current) return;
             const newSub = await freshReg.pushManager.subscribe({
               userVisibleOnly: true,
-              applicationServerKey: urlBase64ToArrayBuffer(key),
+              applicationServerKey: urlBase64ToUint8Array(key),
             });
             if (cancelAutoRef.current) return;
             await saveSubscription(serializeSubscription(newSub), base);
@@ -244,7 +244,7 @@ export function useWebPushNotifications(): WebPushState {
       }
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToArrayBuffer(key),
+        applicationServerKey: urlBase64ToUint8Array(key),
       });
 
       // 5. Save the subscription to our backend (throws on non-2xx)
