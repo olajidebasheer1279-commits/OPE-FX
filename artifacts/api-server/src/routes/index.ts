@@ -15,6 +15,7 @@ import alertsRouter from "./alerts";
 import alertSettingsRouter from "./alert-settings";
 import marketRouter from "./market";
 import pushRouter from "./push";
+import economicCalendarRouter from "./economic-calendar";
 
 const router: IRouter = Router();
 
@@ -34,5 +35,6 @@ router.use(alertsRouter);
 router.use(alertSettingsRouter);
 router.use(marketRouter);
 router.use(pushRouter);
+router.use(economicCalendarRouter);
 
 export default router;

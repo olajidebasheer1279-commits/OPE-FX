@@ -8,6 +8,7 @@ import {
   BarChart2,
   ClipboardList,
   BrainCircuit,
+  CalendarDays,
   Settings,
   HelpCircle,
   LogOut,
@@ -46,6 +47,7 @@ const NAV_ITEMS = [
   { label: "Reviews", href: "/reviews", icon: ClipboardList },
   { label: "Rules", href: "/rules", icon: BarChart2 },
   { label: "Analytics", href: "/analytics", icon: BarChart2 },
+  { label: "Economic Calendar", href: "/economic-calendar", icon: CalendarDays },
   { label: "Trading Assistant", href: "/assistant", icon: BrainCircuit },
 ];
 

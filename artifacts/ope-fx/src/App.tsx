@@ -16,6 +16,7 @@ import Journal from "@/pages/Journal";
 import Rules from "@/pages/Rules";
 import Reviews from "@/pages/Reviews";
 import Analytics from "@/pages/Analytics";
+import EconomicCalendar from "@/pages/EconomicCalendar";
 import Assistant from "@/pages/Assistant";
 import Settings from "@/pages/Settings";
 import Placeholder from "@/pages/Placeholder";
@@ -226,6 +227,7 @@ function ClerkProviderWithRoutes() {
             <Route path="/reviews" component={() => <ProtectedRoute component={Reviews} />} />
             <Route path="/rules" component={() => <ProtectedRoute component={Rules} />} />
             <Route path="/analytics" component={() => <ProtectedRoute component={Analytics} />} />
+            <Route path="/economic-calendar" component={() => <ProtectedRoute component={EconomicCalendar} />} />
             <Route path="/assistant" component={() => <ProtectedRoute component={Assistant} />} />
             <Route path="/settings" component={() => <ProtectedRoute component={Settings} />} />
             <Route path="/help" component={() => <ProtectedRoute component={Placeholder} title="Help" description="Documentation and support resources." />} />
