@@ -2,6 +2,7 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import { marketEngine } from "./lib/market-data/engine";
 import { alertEngine } from "./lib/alert-engine";
+import { economicCalendarScheduler } from "./lib/economic-calendar-scheduler";
 
 const rawPort = process.env["PORT"];
 
@@ -40,5 +41,15 @@ app.listen(port, async (err) => {
     logger.info("Market data engine started");
   } catch (startErr) {
     logger.error({ err: startErr }, "Market data engine failed to start");
+  }
+
+  // Start the economic calendar reminder scheduler.
+  // Fetches this week's (and next week's) events from the ForexFactory CDN,
+  // then schedules push reminders for every high/medium-impact event.
+  try {
+    await economicCalendarScheduler.start();
+    logger.info("Economic calendar scheduler started");
+  } catch (startErr) {
+    logger.error({ err: startErr }, "Economic calendar scheduler failed to start");
   }
 });

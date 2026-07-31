@@ -139,16 +139,23 @@ export async function sendPushToUser(
  * (journal reminders, weekly review, streak notices, risk alerts, achievements, etc.).
  *
  * Uses the same push infrastructure and subscription table as sendPushToUser.
- * Reminders use a longer TTL (1 hour) so they survive brief connectivity gaps.
+ * The optional `ttl` parameter (seconds) controls how long the push broker will
+ * attempt redelivery. Defaults to 3600 s (1 hour) for general notifications.
+ *
+ * For time-sensitive reminders (e.g. "5 minutes before an event") callers should
+ * pass a TTL equal to the reminder offset so the broker does not redeliver a
+ * stale notification long after the event has passed.
+ *
  * Best-effort: never throws.
  */
 export async function sendNotifPush(
   userId: string,
   payload: PushNotifPayload,
+  ttl = 3600,
 ): Promise<void> {
   if (!configured) return;
   try {
-    await _deliverToSubscriptions(userId, JSON.stringify(payload), 3600);
+    await _deliverToSubscriptions(userId, JSON.stringify(payload), ttl);
   } catch (err) {
     logger.error({ err, userId }, "Notification push lookup failed");
   }
